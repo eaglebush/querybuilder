@@ -91,6 +91,11 @@ func NewQueryBuilder(table string) *QueryBuilder {
 	return &QueryBuilder{TableName: table, StringEnclosingChar: `'`, StringEscapeChar: `\`, ResultLimitPosition: REAR, ResultLimit: ""}
 }
 
+//NewQueryBuilderWithCommandType - builds a new QueryBuilder object with table name and command type
+func NewQueryBuilderWithCommandType(table string, commandType CommandType) *QueryBuilder {
+	return &QueryBuilder{TableName: table, CommandType: commandType, StringEnclosingChar: `'`, StringEscapeChar: `\`, ResultLimitPosition: REAR, ResultLimit: ""}
+}
+
 //NewQueryBuilderBare - builds a new QueryBuilder object without a table name
 func NewQueryBuilderBare() *QueryBuilder {
 	return &QueryBuilder{StringEnclosingChar: `'`, StringEscapeChar: `\`, ResultLimitPosition: REAR, ResultLimit: ""}
