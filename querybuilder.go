@@ -518,7 +518,9 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	//build values
 	for _, v := range qb.Values {
 		if qb.CommandType == INSERT || qb.CommandType == UPDATE {
-			retargs = append(retargs, v.Value)
+			if !v.IsDBString {
+				retargs = append(retargs, v.Value)
+			}
 		}
 	}
 
