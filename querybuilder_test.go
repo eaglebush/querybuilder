@@ -32,7 +32,7 @@ func TestBuildDataHelperInsert(t *testing.T) {
 	q.AddColumnValue("Alias", "zaldy.baguinon")
 	q.AddColumnValue("FullName", "Elizalde Baguinon")
 	q.AddColumnValue("Active", false)
-	q.AddColumnValue("Birthdate", time.Now())
+	q.AddColumnNonStringValue("Birthdate", "GETDATE()")
 
 	s, v := q.BuildDataHelper()
 	fmt.Println(s)
@@ -50,7 +50,7 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 	q.AddColumnValue("Alias", "zaldy.baguinon")
 	q.AddColumnValue("FullName", "Elizalde Baguinon")
 	q.AddColumnValue("Active", false)
-	q.AddColumnValue("Birthdate", time.Now())
+	q.AddColumnNonStringValue("Birthdate", "GETDATE()")
 	q.AddFilter("CountryCode='PHL'")
 	q.AddFilterWithValue("Town", "Manila")
 
@@ -93,7 +93,7 @@ func TestBuildDataHelperDelete(t *testing.T) {
 }
 
 func TestBuildStringSelect(t *testing.T) {
-	q := NewQueryBuilder("TableNotSoImportant")
+	q := NewQueryBuilder("[TableNotSoImportant]")
 	q.ResultLimitPosition = REAR
 	q.ResultLimit = "100"
 	q.CommandType = SELECT

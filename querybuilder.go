@@ -56,13 +56,13 @@ type queryValue struct {
 	Value           interface{}
 	DefaultValue    interface{}
 	NullDetectValue interface{}
-	IsDBStringType  bool
+	IsDBString      bool
 }
 
 type queryFilter struct {
 	ColumnNameOrExpression string
 	Value                  interface{}
-	IsDBStringType         bool
+	IsDBString             bool
 }
 
 //QuerySort - sort information
@@ -120,7 +120,7 @@ func (qb *QueryBuilder) AddColumnWithLength(ColumnName string, Length int) *Quer
 }
 
 //SetColumnValue - sets the column value
-func (qb *QueryBuilder) SetColumnValue(ColumnName string, Value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) SetColumnValue(ColumnName string, Value interface{}, IsSQLFunction bool) *QueryBuilder {
 	//only allows non-DELETE statements
 	if qb.CommandType != DELETE {
 		idx := -1
@@ -148,7 +148,7 @@ func (qb *QueryBuilder) AddColumnValue(ColumnName string, Value interface{}) *Qu
 	return qb
 }
 
-//AddColumnNonStringValue - adds a column and a value for BuildString() function. The value is not enclosed in a string when the CommandType is INSERT or UPDATE
+//AddColumnNonStringValue - adds a column and a value. The value is not enclosed in a string when the CommandType is INSERT or UPDATE
 func (qb *QueryBuilder) AddColumnNonStringValue(ColumnName string, Value interface{}) *QueryBuilder {
 	ci := qb.addColumn(ColumnName, 255)
 	qb.setColumnValue(ci, Value, false, nil, nil)
@@ -217,7 +217,7 @@ func (qb *QueryBuilder) CleanStringValue(Value string) string {
 	return s
 }
 
-func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBStringType bool, defaultValue interface{}, nullDetectValue interface{}) *QueryBuilder {
+func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBString bool, defaultValue interface{}, nullDetectValue interface{}) *QueryBuilder {
 	c := strings.ToLower(qb.Columns[ColumnIndex].ColumnName)
 	idx := -1
 	for i, v := range qb.Values {
@@ -231,13 +231,13 @@ func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBS
 	if idx == -1 {
 		qb.Values = append(qb.Values, queryValue{
 			ColumnName:      qb.Columns[ColumnIndex].ColumnName,
-			IsDBStringType:  isDBStringType,
+			IsDBString:      isDBString,
 			DefaultValue:    defaultValue,
 			NullDetectValue: nullDetectValue,
 			Value:           value,
 		})
 	} else {
-		qb.Values[idx].IsDBStringType = isDBStringType
+		qb.Values[idx].IsDBString = isDBString
 		qb.Values[idx].DefaultValue = defaultValue
 		qb.Values[idx].NullDetectValue = nullDetectValue
 		qb.Values[idx].Value = value
@@ -248,14 +248,14 @@ func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBS
 
 //AddFilterWithValue - adds a filter with value into the QueryBuilder for BuildDataHelper() function.
 func (qb *QueryBuilder) AddFilterWithValue(ColumnNameOrExpression string, Value interface{}) *QueryBuilder {
-	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: ColumnNameOrExpression, Value: Value, IsDBStringType: true})
+	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: ColumnNameOrExpression, Value: Value, IsDBString: true})
 
 	return qb
 }
 
 //AddFilterWithNonStringValue - adds a filter with non-db string value into the QueryBuilder for BuildDataHelper() function.
 func (qb *QueryBuilder) AddFilterWithNonStringValue(ColumnNameOrExpression string, Value interface{}) *QueryBuilder {
-	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: ColumnNameOrExpression, Value: Value, IsDBStringType: false})
+	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: ColumnNameOrExpression, Value: Value, IsDBString: false})
 
 	return qb
 }
@@ -350,7 +350,7 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 			/* Only filters set with value will be rendered here */
 			if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
 				if c.Value != nil {
-					tmpsql += cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{ColumnName: c.ColumnNameOrExpression, Value: c.Value, IsDBStringType: c.IsDBStringType})
+					tmpsql += cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{ColumnName: c.ColumnNameOrExpression, Value: c.Value, IsDBString: c.IsDBString})
 				} else {
 					tmpsql += cma + c.ColumnNameOrExpression
 				}
@@ -423,13 +423,19 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	//build columns (with placeholder for update )
 	cma := ""
+
 	for _, v := range qb.Values {
 		switch qb.CommandType {
 		case SELECT, INSERT:
 			retsql += cma + v.ColumnName
 			cma = ", "
 		case UPDATE:
-			retsql += cma + v.ColumnName + " = ?"
+			if v.IsDBString {
+				retsql += cma + v.ColumnName + " = ?"
+			} else {
+				retsql += cma + v.ColumnName + " = " + v.Value.(string)
+			}
+
 			cma = ", "
 		}
 	}
@@ -444,7 +450,14 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	if qb.CommandType == INSERT {
 		q := make([]string, len(qb.Columns))
 		for i := 0; i < cap(q); i++ {
-			q[i] = cma + "?"
+			// On BuildDataHelper, the IsDBString property is interpreted as a literal string that may indicate SQL Functions
+			if qb.Values[i].IsDBString {
+				q[i] = cma + "?"
+			} else {
+
+				q[i] = cma + qb.Values[i].Value.(string)
+			}
+
 			cma = ","
 		}
 		retsql += ") VALUES (" + strings.Join(q, "") + ")"
@@ -573,7 +586,8 @@ func (qb *QueryBuilder) evaluateValue(value queryValue) string {
 				s = "0"
 			}
 		case string:
-			if value.IsDBStringType {
+			// For BuildDataString(), the IsDBString is interpreted as a string that needs to be enclosed in quotes and escaped
+			if value.IsDBString {
 				s = "'" + qb.CleanStringValue(final.(string)) + "'"
 			} else {
 				s = final.(string)
