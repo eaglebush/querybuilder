@@ -51,6 +51,7 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 	q.AddColumnValue("FullName", "Elizalde Baguinon")
 	q.AddColumnValue("Active", false)
 	q.AddColumnNonStringValue("Birthdate", "GETDATE()")
+	q.AddColumnValueNull("DateCreated", "1/1/1900", "1/1/1900")
 	q.AddFilter("CountryCode='PHL'")
 	q.AddFilterWithValue("Town", "Manila")
 

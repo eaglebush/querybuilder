@@ -172,6 +172,22 @@ func (qb *QueryBuilder) AddColumnNonStringValueWithDefault(ColumnName string, Va
 	return qb
 }
 
+//AddColumnValueNull - adds a column and a value with null detection. The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
+func (qb *QueryBuilder) AddColumnValueNull(ColumnName string, Value interface{}, NullDetectValue interface{}) *QueryBuilder {
+	ci := qb.addColumn(ColumnName, 255)
+	qb.setColumnValue(ci, Value, true, nil, NullDetectValue)
+
+	return qb
+}
+
+//AddColumnNonStringValueNull - adds a column and a value with null detection for non-string value.  The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
+func (qb *QueryBuilder) AddColumnNonStringValueNull(ColumnName string, Value interface{}, NullDetectValue interface{}) *QueryBuilder {
+	ci := qb.addColumn(ColumnName, 255)
+	qb.setColumnValue(ci, Value, false, nil, NullDetectValue)
+
+	return qb
+}
+
 //AddColumnValueWithDefaultNull - adds a column and a value with default value and null detection for BuildString() function. The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
 func (qb *QueryBuilder) AddColumnValueWithDefaultNull(ColumnName string, Value interface{}, Default interface{}, NullDetectValue interface{}) *QueryBuilder {
 	ci := qb.addColumn(ColumnName, 255)
@@ -430,10 +446,18 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 			retsql += cma + v.ColumnName
 			cma = ", "
 		case UPDATE:
-			if v.IsDBString {
-				retsql += cma + v.ColumnName + " = ?"
+			if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
+				if v.IsDBString {
+					retsql += cma + v.ColumnName + " = ?"
+				} else {
+					retsql += cma + v.ColumnName + " = NULL "
+				}
 			} else {
-				retsql += cma + v.ColumnName + " = " + v.Value.(string)
+				if v.IsDBString {
+					retsql += cma + v.ColumnName + " = ?"
+				} else {
+					retsql += cma + v.ColumnName + " = " + v.Value.(string)
+				}
 			}
 
 			cma = ", "
@@ -450,12 +474,20 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	if qb.CommandType == INSERT {
 		q := make([]string, len(qb.Columns))
 		for i := 0; i < cap(q); i++ {
+			v := qb.Values[i]
 			// On BuildDataHelper, the IsDBString property is interpreted as a literal string that may indicate SQL Functions
-			if qb.Values[i].IsDBString {
-				q[i] = cma + "?"
+			if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
+				if v.IsDBString {
+					q[i] = cma + "?"
+				} else {
+					q[i] = cma + "NULL"
+				}
 			} else {
-
-				q[i] = cma + qb.Values[i].Value.(string)
+				if v.IsDBString {
+					q[i] = cma + "?"
+				} else {
+					q[i] = cma + v.Value.(string)
+				}
 			}
 
 			cma = ","
@@ -518,8 +550,14 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	//build values
 	for _, v := range qb.Values {
 		if qb.CommandType == INSERT || qb.CommandType == UPDATE {
-			if v.IsDBString {
-				retargs = append(retargs, v.Value)
+			if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
+				if v.IsDBString {
+					retargs = append(retargs, new(interface{}))
+				}
+			} else {
+				if v.IsDBString {
+					retargs = append(retargs, v.Value)
+				}
 			}
 		}
 	}
