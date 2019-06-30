@@ -73,32 +73,55 @@ type querySort struct {
 
 //QueryBuilder - a class to build SQL queries
 type QueryBuilder struct {
-	TableName           string
-	CommandType         CommandType
-	Columns             []queryColumn
-	Values              []queryValue
-	Order               []querySort
-	Group               []string
-	Filter              []queryFilter
-	StringEnclosingChar string
-	StringEscapeChar    string
-	ResultLimitPosition ResultLimitPosition
-	ResultLimit         string
+	TableName                   string
+	CommandType                 CommandType
+	Columns                     []queryColumn
+	Values                      []queryValue
+	Order                       []querySort
+	Group                       []string
+	Filter                      []queryFilter
+	StringEnclosingChar         string
+	StringEscapeChar            string
+	PreparedStatementChar       string
+	PreparedStatementInSequence bool
+	ResultLimitPosition         ResultLimitPosition
+	ResultLimit                 string
 }
 
 //NewQueryBuilder - builds a new QueryBuilder object
 func NewQueryBuilder(table string) *QueryBuilder {
-	return &QueryBuilder{TableName: table, StringEnclosingChar: `'`, StringEscapeChar: `\`, ResultLimitPosition: REAR, ResultLimit: ""}
+	return &QueryBuilder{
+		TableName:             table,
+		StringEnclosingChar:   `'`,
+		StringEscapeChar:      `\`,
+		PreparedStatementChar: `?`,
+		ResultLimitPosition:   REAR,
+		ResultLimit:           "",
+	}
 }
 
 //NewQueryBuilderWithCommandType - builds a new QueryBuilder object with table name and command type
 func NewQueryBuilderWithCommandType(table string, commandType CommandType) *QueryBuilder {
-	return &QueryBuilder{TableName: table, CommandType: commandType, StringEnclosingChar: `'`, StringEscapeChar: `\`, ResultLimitPosition: REAR, ResultLimit: ""}
+	return &QueryBuilder{
+		TableName:             table,
+		CommandType:           commandType,
+		StringEnclosingChar:   `'`,
+		StringEscapeChar:      `\`,
+		PreparedStatementChar: `?`,
+		ResultLimitPosition:   REAR,
+		ResultLimit:           "",
+	}
 }
 
 //NewQueryBuilderBare - builds a new QueryBuilder object without a table name
 func NewQueryBuilderBare() *QueryBuilder {
-	return &QueryBuilder{StringEnclosingChar: `'`, StringEscapeChar: `\`, ResultLimitPosition: REAR, ResultLimit: ""}
+	return &QueryBuilder{
+		StringEnclosingChar:   `'`,
+		StringEscapeChar:      `\`,
+		PreparedStatementChar: `?`,
+		ResultLimitPosition:   REAR,
+		ResultLimit:           "",
+	}
 }
 
 //AddColumn - adds a column into the QueryBuilder
@@ -439,27 +462,35 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	//build columns (with placeholder for update )
 	cma := ""
+	pchar := ""
+	cnt := 0
+	nullnow := false
 
 	for _, v := range qb.Values {
+		nullnow = v.NullDetectValue == v.Value && v.NullDetectValue != nil
 		switch qb.CommandType {
 		case SELECT, INSERT:
 			retsql += cma + v.ColumnName
 			cma = ", "
 		case UPDATE:
-			if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
-				if v.IsDBString {
-					retsql += cma + v.ColumnName + " = ?"
-				} else {
-					retsql += cma + v.ColumnName + " = NULL "
+			retsql += cma + v.ColumnName
+			pchar = " = "
+
+			if v.IsDBString {
+				pchar += qb.PreparedStatementChar
+				if qb.PreparedStatementInSequence {
+					cnt++
+					pchar += strconv.Itoa(cnt)
 				}
 			} else {
-				if v.IsDBString {
-					retsql += cma + v.ColumnName + " = ?"
+				if nullnow {
+					pchar += " NULL "
 				} else {
-					retsql += cma + v.ColumnName + " = " + v.Value.(string)
+					pchar += v.Value.(string)
 				}
 			}
 
+			retsql += pchar
 			cma = ", "
 		}
 	}
@@ -471,24 +502,27 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	//build value place holder for insert
 	cma = ""
+	pchar = ""
 	if qb.CommandType == INSERT {
 		q := make([]string, len(qb.Columns))
 		for i := 0; i < cap(q); i++ {
 			v := qb.Values[i]
+
 			// On BuildDataHelper, the IsDBString property is interpreted as a literal string that may indicate SQL Functions
-			if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
-				if v.IsDBString {
-					q[i] = cma + "?"
-				} else {
-					q[i] = cma + "NULL"
+			nullnow = v.NullDetectValue == v.Value && v.NullDetectValue != nil
+			pchar = qb.PreparedStatementChar
+
+			if v.IsDBString {
+				if qb.PreparedStatementInSequence {
+					cnt++
+					pchar += strconv.Itoa(cnt)
 				}
 			} else {
-				if v.IsDBString {
-					q[i] = cma + "?"
-				} else {
-					q[i] = cma + v.Value.(string)
+				if !nullnow {
+					pchar = v.Value.(string)
 				}
 			}
+			q[i] = cma + pchar
 
 			cma = ","
 		}
@@ -503,7 +537,12 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 			/* Only filters set with value will be rendered here */
 			if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
 				if c.Value != nil {
-					tmpsql += cma + c.ColumnNameOrExpression + " = ?"
+					pchar = qb.PreparedStatementChar
+					if qb.PreparedStatementInSequence {
+						cnt++
+						pchar += strconv.Itoa(cnt)
+					}
+					tmpsql += cma + c.ColumnNameOrExpression + " = " + pchar
 				} else {
 					tmpsql += cma + c.ColumnNameOrExpression
 				}

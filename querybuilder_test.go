@@ -26,6 +26,10 @@ func TestBuildDataHelperSelect(t *testing.T) {
 
 func TestBuildDataHelperInsert(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
+
+	q.PreparedStatementChar = "@p"
+	q.PreparedStatementInSequence = true
+
 	q.CommandType = INSERT
 	q.AddColumnValue("UserKey", 5)
 	q.AddColumnValue("UserName", "eaglebush")
@@ -45,6 +49,10 @@ func TestBuildDataHelperInsert(t *testing.T) {
 func TestBuildDataHelperUpdate(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
 	q.CommandType = UPDATE
+
+	q.PreparedStatementChar = "$"
+	q.PreparedStatementInSequence = true
+
 	q.AddColumnValue("UserKey", 5)
 	q.AddColumnValue("UserName", "eaglebush")
 	q.AddColumnValue("Alias", "zaldy.baguinon")
@@ -69,6 +77,10 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 
 func TestBuildDataHelperDelete(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
+
+	q.PreparedStatementChar = "$"
+	q.PreparedStatementInSequence = true
+
 	q.CommandType = DELETE
 	q.AddFilter("CountryCode='PHL'")
 	q.AddFilterWithValue("Town", "Manila")
