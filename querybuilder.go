@@ -57,6 +57,7 @@ type queryValue struct {
 	DefaultValue    interface{}
 	NullDetectValue interface{}
 	IsDBString      bool
+	skip            bool
 }
 
 type queryFilter struct {
@@ -84,6 +85,7 @@ type QueryBuilder struct {
 	StringEscapeChar            string
 	PreparedStatementChar       string
 	PreparedStatementInSequence bool
+	SkipNilWriteColumn          bool
 	ResultLimitPosition         ResultLimitPosition
 	ResultLimit                 string
 }
@@ -127,7 +129,8 @@ func NewQueryBuilderBare() *QueryBuilder {
 //AddColumn - adds a column into the QueryBuilder
 func (qb *QueryBuilder) AddColumn(ColumnName string) *QueryBuilder {
 	if qb.CommandType != DELETE {
-		qb.addColumn(ColumnName, 255) //only allows non-DELETE statements
+		ci := qb.addColumn(ColumnName, 255) //only allows non-DELETE statements
+		qb.setColumnValue(ci, nil, true, nil, nil)
 	}
 
 	return qb
@@ -136,7 +139,8 @@ func (qb *QueryBuilder) AddColumn(ColumnName string) *QueryBuilder {
 //AddColumnWithLength - adds a column with specified length into the QueryBuilder
 func (qb *QueryBuilder) AddColumnWithLength(ColumnName string, Length int) *QueryBuilder {
 	if qb.CommandType != DELETE {
-		qb.addColumn(ColumnName, Length) //only allows non-DELETE statements
+		ci := qb.addColumn(ColumnName, Length) //only allows non-DELETE statements
+		qb.setColumnValue(ci, nil, true, nil, nil)
 	}
 
 	return qb
@@ -346,14 +350,30 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 	//build columns (with placeholder for update )
 	cma := ""
 	if len(qb.Values) > 0 {
-		for _, v := range qb.Values {
+		for idx, v := range qb.Values {
+
+			// Skip columns to render if the SkipNilWriteColumn is true and value is nil
+			qb.Values[idx].skip = qb.SkipNilWriteColumn && v.Value == nil
+
 			switch qb.CommandType {
-			case SELECT, INSERT:
+			case SELECT:
 				retsql += cma + v.ColumnName
 				cma = ", "
+			case INSERT:
+				if !qb.Values[idx].skip {
+					retsql += cma + v.ColumnName
+					cma = ", "
+				}
 			case UPDATE:
-				retsql += cma + v.ColumnName + " = " + qb.evaluateValue(v)
-				cma = ", "
+				if !qb.Values[idx].skip {
+					if v.Value != nil {
+						retsql += cma + v.ColumnName + " = " + qb.evaluateValue(v)
+					} else {
+						retsql += cma + v.ColumnName + " = NULL"
+					}
+
+					cma = ", "
+				}
 			}
 		}
 	} else {
@@ -374,9 +394,16 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 	cma = ""
 	if qb.CommandType == INSERT {
 		tmpsql := ""
-		for _, v := range qb.Values {
-			tmpsql += cma + qb.evaluateValue(v)
-			cma = ", "
+		for idx, v := range qb.Values {
+			if !qb.Values[idx].skip {
+				if v.Value != nil {
+					tmpsql += cma + qb.evaluateValue(v)
+				} else {
+					tmpsql += cma + "NULL"
+				}
+
+				cma = ", "
+			}
 		}
 		retsql += ") VALUES (" + tmpsql + ")"
 	}
@@ -391,7 +418,7 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 				if c.Value != nil {
 					tmpsql += cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{ColumnName: c.ColumnNameOrExpression, Value: c.Value, IsDBString: c.IsDBString})
 				} else {
-					tmpsql += cma + c.ColumnNameOrExpression
+					tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
 				}
 
 				cma = " AND "
@@ -463,35 +490,50 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	//build columns (with placeholder for update )
 	cma := ""
 	pchar := ""
-	cnt := 0
+	paramcnt := 0
+	columncnt := 0
 	nullnow := false
 
-	for _, v := range qb.Values {
+	for idx, v := range qb.Values {
+
+		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
+		qb.Values[idx].skip = qb.SkipNilWriteColumn && v.Value == nil
 		nullnow = v.NullDetectValue == v.Value && v.NullDetectValue != nil
+
 		switch qb.CommandType {
-		case SELECT, INSERT:
+		case SELECT:
 			retsql += cma + v.ColumnName
 			cma = ", "
-		case UPDATE:
-			retsql += cma + v.ColumnName
-			pchar = " = "
-
-			if v.IsDBString {
-				pchar += qb.PreparedStatementChar
-				if qb.PreparedStatementInSequence {
-					cnt++
-					pchar += strconv.Itoa(cnt)
-				}
-			} else {
-				if nullnow {
-					pchar += " NULL "
-				} else {
-					pchar += v.Value.(string)
-				}
+			columncnt++
+		case INSERT:
+			if !qb.Values[idx].skip {
+				retsql += cma + v.ColumnName
+				cma = ", "
+				columncnt++
 			}
+		case UPDATE:
+			if !qb.Values[idx].skip {
+				retsql += cma + v.ColumnName
+				pchar = " = "
 
-			retsql += pchar
-			cma = ", "
+				if v.IsDBString {
+					pchar += qb.PreparedStatementChar
+					if qb.PreparedStatementInSequence {
+						paramcnt++
+						pchar += strconv.Itoa(paramcnt)
+					}
+				} else {
+					if nullnow {
+						pchar += " NULL "
+					} else {
+						pchar += v.Value.(string)
+					}
+				}
+
+				retsql += pchar
+				cma = ", "
+				columncnt++
+			}
 		}
 	}
 
@@ -503,30 +545,35 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	//build value place holder for insert
 	cma = ""
 	pchar = ""
+	inscnt := 0
 	if qb.CommandType == INSERT {
-		q := make([]string, len(qb.Columns))
-		for i := 0; i < cap(q); i++ {
-			v := qb.Values[i]
 
-			// On BuildDataHelper, the IsDBString property is interpreted as a literal string that may indicate SQL Functions
-			nullnow = v.NullDetectValue == v.Value && v.NullDetectValue != nil
-			pchar = qb.PreparedStatementChar
+		q := make([]string, columncnt)
+		for _, v := range qb.Values {
+			if !v.skip {
+				// On BuildDataHelper, the IsDBString property is interpreted as a literal string that may indicate SQL Functions
+				nullnow = v.NullDetectValue == v.Value && v.NullDetectValue != nil
+				pchar = qb.PreparedStatementChar
 
-			if v.IsDBString {
-				if qb.PreparedStatementInSequence {
-					cnt++
-					pchar += strconv.Itoa(cnt)
+				if v.IsDBString {
+					if qb.PreparedStatementInSequence {
+						paramcnt++
+						pchar += strconv.Itoa(paramcnt)
+					}
+				} else {
+					if !nullnow {
+						pchar = v.Value.(string)
+					}
 				}
-			} else {
-				if !nullnow {
-					pchar = v.Value.(string)
-				}
+				q[inscnt] = cma + pchar
+
+				cma = ","
+				inscnt++
 			}
-			q[i] = cma + pchar
-
-			cma = ","
 		}
+
 		retsql += ") VALUES (" + strings.Join(q, "") + ")"
+
 	}
 
 	//build filters
@@ -539,12 +586,12 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 				if c.Value != nil {
 					pchar = qb.PreparedStatementChar
 					if qb.PreparedStatementInSequence {
-						cnt++
-						pchar += strconv.Itoa(cnt)
+						paramcnt++
+						pchar += strconv.Itoa(paramcnt)
 					}
 					tmpsql += cma + c.ColumnNameOrExpression + " = " + pchar
 				} else {
-					tmpsql += cma + c.ColumnNameOrExpression
+					tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
 				}
 
 				cma = " AND "
@@ -588,14 +635,21 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	//build values
 	for _, v := range qb.Values {
-		if qb.CommandType == INSERT || qb.CommandType == UPDATE {
-			if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
-				if v.IsDBString {
-					retargs = append(retargs, new(interface{}))
-				}
-			} else {
-				if v.IsDBString {
-					retargs = append(retargs, v.Value)
+		if !v.skip {
+
+			if qb.CommandType == INSERT || qb.CommandType == UPDATE {
+				if v.NullDetectValue == v.Value && v.NullDetectValue != nil {
+					if v.IsDBString {
+						retargs = append(retargs, new(interface{}))
+					}
+				} else {
+					if v.IsDBString {
+						if v.Value != nil {
+							retargs = append(retargs, v.Value)
+						} else {
+							retargs = append(retargs, new(interface{}))
+						}
+					}
 				}
 			}
 		}

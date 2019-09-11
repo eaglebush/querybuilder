@@ -29,6 +29,7 @@ func TestBuildDataHelperInsert(t *testing.T) {
 
 	q.PreparedStatementChar = "@p"
 	q.PreparedStatementInSequence = true
+	q.SkipNilWriteColumn = true //Ship if the value is null. Works only on INSERT and UPDATE
 
 	q.CommandType = INSERT
 	q.AddColumnValue("UserKey", 5)
@@ -36,6 +37,7 @@ func TestBuildDataHelperInsert(t *testing.T) {
 	q.AddColumnValue("Alias", "zaldy.baguinon")
 	q.AddColumnValue("FullName", "Elizalde Baguinon")
 	q.AddColumnValue("Active", false)
+	q.AddColumnValue("Gender", nil)
 	q.AddColumnNonStringValue("Birthdate", "GETDATE()")
 
 	s, v := q.BuildDataHelper()
@@ -52,6 +54,7 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 
 	q.PreparedStatementChar = "$"
 	q.PreparedStatementInSequence = true
+	q.SkipNilWriteColumn = true
 
 	q.AddColumnValue("UserKey", 5)
 	q.AddColumnValue("UserName", "eaglebush")
@@ -62,6 +65,8 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 	q.AddColumnValueNull("DateCreated", "1/1/1900", "1/1/1900")
 	q.AddFilter("CountryCode='PHL'")
 	q.AddFilterWithValue("Town", "Manila")
+	q.AddFilterWithValue("District", nil)
+	q.AddColumnValue("Gender", nil)
 
 	/* The following commands are added to demonstrate that UPDATE command type does not support it, will panic. Uncomment to test*/
 	//q.AddOrder("UserName", ASC)
@@ -70,8 +75,10 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 	s, v := q.BuildDataHelper()
 	fmt.Println(s)
 	for _, vi := range v {
-		vt := reflect.TypeOf(vi)
-		fmt.Println(vi, vt.String())
+		if vi != nil {
+			vt := reflect.TypeOf(vi)
+			fmt.Println(vi, vt.String())
+		}
 	}
 }
 
@@ -84,6 +91,7 @@ func TestBuildDataHelperDelete(t *testing.T) {
 	q.CommandType = DELETE
 	q.AddFilter("CountryCode='PHL'")
 	q.AddFilterWithValue("Town", "Manila")
+	q.AddFilterWithValue("District", nil)
 
 	/* The following commands are added to demonstrate that DELETE command ignores it */
 	q.AddColumnValue("UserKey", 5)
@@ -107,6 +115,7 @@ func TestBuildDataHelperDelete(t *testing.T) {
 
 func TestBuildStringSelect(t *testing.T) {
 	q := NewQueryBuilder("[TableNotSoImportant]")
+
 	q.ResultLimitPosition = REAR
 	q.ResultLimit = "100"
 	q.CommandType = SELECT
@@ -121,6 +130,8 @@ func TestBuildStringSelect(t *testing.T) {
 
 func TestBuildStringInsert(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
+	q.SkipNilWriteColumn = false
+
 	q.CommandType = INSERT
 	q.AddColumnValue("UserKey", float64(5))
 	q.AddColumnValue("UserName", "eaglebush")
@@ -128,6 +139,7 @@ func TestBuildStringInsert(t *testing.T) {
 	q.AddColumnValue("FullName", "Elizalde Baguinon")
 	q.AddColumnValue("Active", false)
 	q.AddColumnValue("Birthdate", time.Now())
+	q.AddColumnValue("Town", nil)
 	q.AddColumnNonStringValue("DateLastLoggedIn", "GETDATE()")                     /* Useful for calling SQL functions*/
 	q.AddColumnValueWithDefault("ProfileImageURL", nil, "http://www.facebook.com") /* Autodetects nil value and replaces the default value*/
 
@@ -137,6 +149,8 @@ func TestBuildStringInsert(t *testing.T) {
 
 func TestBuildStringUpdate(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
+	q.SkipNilWriteColumn = true
+
 	q.CommandType = UPDATE
 	q.AddColumnValue("UserKey", float64(5))
 	q.AddColumnValue("UserName", "eaglebush")
@@ -144,12 +158,14 @@ func TestBuildStringUpdate(t *testing.T) {
 	q.AddColumnValue("FullName", "Elizalde Baguinon")
 	q.AddColumnValue("Active", false)
 	q.AddColumnValue("Birthdate", time.Now())
+	q.AddColumnValue("Town", nil)
 	q.AddColumnNonStringValue("DateLastLoggedIn", "GETDATE()")                     /* Useful for calling SQL functions*/
 	q.AddColumnValueWithDefault("ProfileImageURL", nil, "http://www.facebook.com") /* Autodetects nil value and replaces the default value*/
 
 	q.AddFilter("Active = 1")
 	q.AddFilterWithValue("ActivationStatus", "ACTIVATED")
 	q.AddFilterWithNonStringValue("ActivationCode", "UNIQUEID()") /* Useful for calling SQL functions for filter */
+	q.AddFilterWithValue("ActivationStatus", nil)
 
 	s, _ := q.BuildString()
 	fmt.Println(s)
@@ -172,6 +188,7 @@ func TestBuildStringDelete(t *testing.T) {
 	q.AddFilter("Active = 1") /* For a non-equal filter */
 	q.AddFilterWithValue("ActivationStatus", "ACTIVATED")
 	q.AddFilterWithNonStringValue("ActivationCode", "UNIQUEID()") /* Useful for calling SQL functions for filter */
+	q.AddFilterWithValue("ActivationStatus", nil)
 
 	s, _ := q.BuildString()
 	fmt.Println(s)
