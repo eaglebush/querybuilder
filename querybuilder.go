@@ -11,6 +11,7 @@ package querybuilder
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -353,7 +354,24 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 		for idx, v := range qb.Values {
 
 			// Skip columns to render if the SkipNilWriteColumn is true and value is nil
-			qb.Values[idx].skip = qb.SkipNilWriteColumn && v.Value == nil
+			valueIsNil := false
+			if v.Value == nil {
+				valueIsNil = true
+			} else {
+				t := reflect.TypeOf(v.Value)
+				if t == nil {
+					valueIsNil = true
+				} else {
+					tv := reflect.ValueOf(v.Value)
+					if tv.IsZero() {
+						if tv.IsNil() {
+							valueIsNil = true
+						}
+					}
+				}
+			}
+
+			qb.Values[idx].skip = qb.SkipNilWriteColumn && valueIsNil
 
 			switch qb.CommandType {
 			case SELECT:
@@ -497,7 +515,24 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	for idx, v := range qb.Values {
 
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
-		qb.Values[idx].skip = qb.SkipNilWriteColumn && v.Value == nil
+		valueIsNil := false
+		if v.Value == nil {
+			valueIsNil = true
+		} else {
+			t := reflect.TypeOf(v.Value)
+			if t == nil {
+				valueIsNil = true
+			} else {
+				tv := reflect.ValueOf(v.Value)
+				if tv.IsZero() {
+					if tv.IsNil() {
+						valueIsNil = true
+					}
+				}
+			}
+		}
+
+		qb.Values[idx].skip = qb.SkipNilWriteColumn && valueIsNil
 		nullnow = v.NullDetectValue == v.Value && v.NullDetectValue != nil
 
 		switch qb.CommandType {

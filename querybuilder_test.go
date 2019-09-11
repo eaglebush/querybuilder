@@ -32,13 +32,22 @@ func TestBuildDataHelperInsert(t *testing.T) {
 	q.SkipNilWriteColumn = true //Ship if the value is null. Works only on INSERT and UPDATE
 
 	q.CommandType = INSERT
-	q.AddColumnValue("UserKey", 5)
+	// q.AddColumnValue("UserKey", 5)
 	q.AddColumnValue("UserName", "eaglebush")
-	q.AddColumnValue("Alias", "zaldy.baguinon")
-	q.AddColumnValue("FullName", "Elizalde Baguinon")
-	q.AddColumnValue("Active", false)
+	// q.AddColumnValue("Alias", "zaldy.baguinon")
+	// q.AddColumnValue("FullName", "Elizalde Baguinon")
+	// q.AddColumnValue("Active", false)
 	q.AddColumnValue("Gender", nil)
-	q.AddColumnNonStringValue("Birthdate", "GETDATE()")
+	// q.AddColumnNonStringValue("Birthdate", "GETDATE()")
+
+	var pinf1 *interface{}
+	pinf1 = nil
+
+	var pinf2 interface{}
+	pinf2 = nil
+
+	q.AddColumnValue("PackedInterface1", pinf1)
+	q.AddColumnValue("PackedInterface2", pinf2)
 
 	s, v := q.BuildDataHelper()
 	fmt.Println(s)
