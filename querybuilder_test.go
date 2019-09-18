@@ -202,3 +202,8 @@ func TestBuildStringDelete(t *testing.T) {
 	s, _ := q.BuildString()
 	fmt.Println(s)
 }
+
+func TestTimeFormat(t *testing.T) {
+	tm := time.Now()
+	fmt.Printf("Time :%v", tm.Format(`2006-01-02 15:04:05`))
+}
