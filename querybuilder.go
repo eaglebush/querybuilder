@@ -525,8 +525,11 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 			} else {
 				tv := reflect.ValueOf(v.Value)
 				if tv.IsZero() {
-					if tv.IsNil() {
-						valueIsNil = true
+					k := t.Kind()
+					if k != reflect.Bool {
+						if tv.IsNil() {
+							valueIsNil = true
+						}
 					}
 				}
 			}

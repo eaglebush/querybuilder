@@ -33,18 +33,21 @@ func TestBuildDataHelperInsert(t *testing.T) {
 
 	q.CommandType = INSERT
 	// q.AddColumnValue("UserKey", 5)
-	q.AddColumnValue("UserName", "eaglebush")
+	//q.AddColumnValue("UserName", "eaglebush")
 	// q.AddColumnValue("Alias", "zaldy.baguinon")
 	// q.AddColumnValue("FullName", "Elizalde Baguinon")
 	// q.AddColumnValue("Active", false)
-	q.AddColumnValue("Gender", nil)
+	//q.AddColumnValue("Gender", nil)
 	// q.AddColumnNonStringValue("Birthdate", "GETDATE()")
 
+	var vbool interface{}
+	vbool = true
+
 	var pinf1 *interface{}
-	pinf1 = nil
+	pinf1 = &vbool
 
 	var pinf2 interface{}
-	pinf2 = nil
+	pinf2 = false
 
 	q.AddColumnValue("PackedInterface1", pinf1)
 	q.AddColumnValue("PackedInterface2", pinf2)
