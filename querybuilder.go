@@ -526,7 +526,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 				tv := reflect.ValueOf(v.Value)
 				if tv.IsZero() {
 					k := t.Kind()
-					if k != reflect.Bool {
+					if k == reflect.Map || k == reflect.Func || k == reflect.Ptr || k == reflect.Slice || k == reflect.Interface {
 						if tv.IsNil() {
 							valueIsNil = true
 						}
