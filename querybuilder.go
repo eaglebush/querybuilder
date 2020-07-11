@@ -1,10 +1,8 @@
-/**
-QueryBuilder package
-
-Builds SQL query for both prepared and literal SQL string.
-- BuildString() function - builds literal SQL string together with the supplied values. The functions tagged for BuildString() should be used for automatic formatting
-- BuildDataHelper() function - builds a prepared command query and outputs an array of interface objects for arguments. The functions tagged for BuildDataHelper should be used.
-*/
+// Package QueryBuilder
+//
+// Builds SQL query for both prepared and literal SQL string.
+// - BuildString() function - builds literal SQL string together with the supplied values. The functions tagged for BuildString() should be used for automatic formatting
+// - BuildDataHelper() function - builds a prepared command query and outputs an array of interface objects for arguments. The functions tagged for BuildDataHelper should be used.
 
 package querybuilder
 
@@ -15,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	cfg "github.com/eaglebush/config"
 )
 
 //CommandType - the type of command to perform
@@ -28,10 +28,10 @@ type ResultLimitPosition int
 
 //CommandType enum
 const (
-	SELECT CommandType = 0
-	INSERT CommandType = 1
-	UPDATE CommandType = 2
-	DELETE CommandType = 3
+	SELECT CommandType = 0 // Select record type
+	INSERT CommandType = 1 // Insert record type
+	UPDATE CommandType = 2 // Update record type
+	DELETE CommandType = 3 // Delete record type
 )
 
 //SortDirection enum
@@ -73,25 +73,25 @@ type querySort struct {
 	Order      QuerySortDirection
 }
 
-//QueryBuilder - a class to build SQL queries
+// QueryBuilder - a class to build SQL queries
 type QueryBuilder struct {
-	TableName                   string
-	CommandType                 CommandType
-	Columns                     []queryColumn
-	Values                      []queryValue
-	Order                       []querySort
-	Group                       []string
-	Filter                      []queryFilter
-	StringEnclosingChar         string
-	StringEscapeChar            string
-	PreparedStatementChar       string
-	PreparedStatementInSequence bool
-	SkipNilWriteColumn          bool
-	ResultLimitPosition         ResultLimitPosition
-	ResultLimit                 string
+	TableName                   string              // table name of the query
+	CommandType                 CommandType         // command type
+	Columns                     []queryColumn       // columns of the query
+	Values                      []queryValue        // values of the columns
+	Order                       []querySort         // order by columns
+	Group                       []string            // group by columns
+	Filter                      []queryFilter       // query filter
+	StringEnclosingChar         string              // Gets or sets the character that encloses a string in the query
+	StringEscapeChar            string              // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
+	PreparedStatementChar       string              // Gets or sets the character placeholder for prepared statements
+	PreparedStatementInSequence bool                // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
+	SkipNilWriteColumn          bool                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	ResultLimitPosition         ResultLimitPosition // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
+	ResultLimit                 string              // The value of the row limit
 }
 
-//NewQueryBuilder - builds a new QueryBuilder object
+// NewQueryBuilder - builds a new QueryBuilder object
 func NewQueryBuilder(table string) *QueryBuilder {
 	return &QueryBuilder{
 		TableName:             table,
@@ -103,7 +103,7 @@ func NewQueryBuilder(table string) *QueryBuilder {
 	}
 }
 
-//NewQueryBuilderWithCommandType - builds a new QueryBuilder object with table name and command type
+// NewQueryBuilderWithCommandType - builds a new QueryBuilder object with table name and command type
 func NewQueryBuilderWithCommandType(table string, commandType CommandType) *QueryBuilder {
 	return &QueryBuilder{
 		TableName:             table,
@@ -116,7 +116,7 @@ func NewQueryBuilderWithCommandType(table string, commandType CommandType) *Quer
 	}
 }
 
-//NewQueryBuilderBare - builds a new QueryBuilder object without a table name
+// NewQueryBuilderBare - builds a new QueryBuilder object without a table name
 func NewQueryBuilderBare() *QueryBuilder {
 	return &QueryBuilder{
 		StringEnclosingChar:   `'`,
@@ -127,8 +127,23 @@ func NewQueryBuilderBare() *QueryBuilder {
 	}
 }
 
-//AddColumn - adds a column into the QueryBuilder
+// NewQueryBuilderWithConfig - builds a new QueryBuilder object with a table name, command type and a configuration DatabaseInfo
+func NewQueryBuilderWithConfig(table string, commandType CommandType, config cfg.DatabaseInfo) *QueryBuilder {
+	return &QueryBuilder{
+		TableName:                   table,
+		CommandType:                 commandType,
+		StringEnclosingChar:         `'`,
+		StringEscapeChar:            `\`,
+		PreparedStatementChar:       config.ParameterPlaceholder,
+		PreparedStatementInSequence: config.ParameterInSequence,
+		ResultLimitPosition:         REAR,
+		ResultLimit:                 "",
+	}
+}
+
+// AddColumn - adds a column into the QueryBuilder
 func (qb *QueryBuilder) AddColumn(ColumnName string) *QueryBuilder {
+
 	if qb.CommandType != DELETE {
 		ci := qb.addColumn(ColumnName, 255) //only allows non-DELETE statements
 		qb.setColumnValue(ci, nil, true, nil, nil)
@@ -137,7 +152,7 @@ func (qb *QueryBuilder) AddColumn(ColumnName string) *QueryBuilder {
 	return qb
 }
 
-//AddColumnWithLength - adds a column with specified length into the QueryBuilder
+// AddColumnWithLength - adds a column with specified length into the QueryBuilder
 func (qb *QueryBuilder) AddColumnWithLength(ColumnName string, Length int) *QueryBuilder {
 	if qb.CommandType != DELETE {
 		ci := qb.addColumn(ColumnName, Length) //only allows non-DELETE statements
@@ -233,21 +248,17 @@ func (qb *QueryBuilder) AddColumnNonStringValueDefaultNull(ColumnName string, Va
 }
 
 func (qb *QueryBuilder) addColumn(columnName string, length int) int {
-	idx := -1
+
 	c := strings.ToLower(columnName)
 	for i, v := range qb.Columns {
 		if c == strings.ToLower(v.ColumnName) {
-			idx = i
-			break
+			return i
 		}
 	}
 
-	if idx == -1 {
-		qb.Columns = append(qb.Columns, queryColumn{ColumnName: columnName, Length: length})
-		idx = len(qb.Columns) - 1
-	}
+	qb.Columns = append(qb.Columns, queryColumn{ColumnName: columnName, Length: length})
 
-	return idx
+	return len(qb.Columns) - 1
 }
 
 //CleanStringValue - clean a string value to prevent unescaped string errors for BuildString() function.
