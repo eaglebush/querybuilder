@@ -89,6 +89,7 @@ type QueryBuilder struct {
 	SkipNilWriteColumn          bool                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
 	ResultLimitPosition         ResultLimitPosition // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
 	ResultLimit                 string              // The value of the row limit
+	dbinfo                      *cfg.DatabaseInfo
 }
 
 // NewQueryBuilder - builds a new QueryBuilder object
@@ -138,6 +139,7 @@ func NewQueryBuilderWithConfig(table string, commandType CommandType, config cfg
 		PreparedStatementInSequence: config.ParameterInSequence,
 		ResultLimitPosition:         REAR,
 		ResultLimit:                 "",
+		dbinfo:                      &config,
 	}
 }
 
@@ -345,6 +347,15 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 		return "", errors.New(s)
 	}
 
+	// Auto attach schema if config is specified
+	tbn := qb.TableName
+	if qb.dbinfo != nil {
+		pos := strings.LastIndex(tbn, `.`)
+		if pos == -1 && qb.dbinfo.Schema != "" {
+			tbn = qb.dbinfo.Schema + `.` + tbn
+		}
+	}
+
 	switch qb.CommandType {
 	case SELECT:
 		retsql = "SELECT "
@@ -352,11 +363,11 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 			retsql += " TOP " + qb.ResultLimit + " "
 		}
 	case INSERT:
-		retsql = "INSERT INTO " + qb.TableName + " ("
+		retsql = "INSERT INTO " + tbn + " ("
 	case UPDATE:
-		retsql = "UPDATE " + qb.TableName + " SET "
+		retsql = "UPDATE " + tbn + " SET "
 	case DELETE:
-		retsql = "DELETE FROM " + qb.TableName
+		retsql = "DELETE FROM " + tbn
 	}
 
 	//build columns (with placeholder for update )
@@ -416,7 +427,7 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 
 	/* Append table name for SELECT*/
 	if qb.CommandType == SELECT {
-		retsql += " FROM " + qb.TableName
+		retsql += " FROM " + tbn
 	}
 
 	//build value place holder for insert
@@ -502,6 +513,15 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 		panic(s)
 	}
 
+	// Auto attach schema
+	tbn := qb.TableName
+	if qb.dbinfo != nil {
+		pos := strings.LastIndex(tbn, `.`)
+		if pos == -1 && qb.dbinfo.Schema != "" {
+			tbn = qb.dbinfo.Schema + `.` + tbn
+		}
+	}
+
 	switch qb.CommandType {
 	case SELECT:
 		retsql = "SELECT "
@@ -509,11 +529,11 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 			retsql += " TOP " + qb.ResultLimit + " "
 		}
 	case INSERT:
-		retsql = "INSERT INTO " + qb.TableName + " ("
+		retsql = "INSERT INTO " + tbn + " ("
 	case UPDATE:
-		retsql = "UPDATE " + qb.TableName + " SET "
+		retsql = "UPDATE " + tbn + " SET "
 	case DELETE:
-		retsql = "DELETE FROM " + qb.TableName
+		retsql = "DELETE FROM " + tbn
 	}
 
 	//build columns (with placeholder for update )
@@ -588,7 +608,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	/* Append table name for SELECT*/
 	if qb.CommandType == SELECT {
-		retsql += " FROM " + qb.TableName
+		retsql += " FROM " + tbn
 	}
 
 	//build value place holder for insert
