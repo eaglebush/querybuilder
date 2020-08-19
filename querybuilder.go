@@ -75,15 +75,16 @@ type querySort struct {
 
 // QueryBuilder - a class to build SQL queries
 type QueryBuilder struct {
-	TableName                   string              // table name of the query
-	CommandType                 CommandType         // command type
-	Columns                     []queryColumn       // columns of the query
-	Values                      []queryValue        // values of the columns
-	Order                       []querySort         // order by columns
-	Group                       []string            // group by columns
-	Filter                      []queryFilter       // query filter
+	TableName                   string              // Table name of the query
+	CommandType                 CommandType         // Command type
+	Columns                     []queryColumn       // Columns of the query
+	Values                      []queryValue        // Values of the columns
+	Order                       []querySort         // oOder by columns
+	Group                       []string            // Group by columns
+	Filter                      []queryFilter       // Query filter
 	StringEnclosingChar         string              // Gets or sets the character that encloses a string in the query
 	StringEscapeChar            string              // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
+	ReservedWordEscapeChar      string              // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
 	PreparedStatementChar       string              // Gets or sets the character placeholder for prepared statements
 	PreparedStatementInSequence bool                // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
 	SkipNilWriteColumn          bool                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
@@ -95,36 +96,39 @@ type QueryBuilder struct {
 // NewQueryBuilder - builds a new QueryBuilder object
 func NewQueryBuilder(table string) *QueryBuilder {
 	return &QueryBuilder{
-		TableName:             table,
-		StringEnclosingChar:   `'`,
-		StringEscapeChar:      `\`,
-		PreparedStatementChar: `?`,
-		ResultLimitPosition:   REAR,
-		ResultLimit:           "",
+		TableName:              table,
+		StringEnclosingChar:    `'`,
+		StringEscapeChar:       `\`,
+		PreparedStatementChar:  `?`,
+		ReservedWordEscapeChar: `"`,
+		ResultLimitPosition:    REAR,
+		ResultLimit:            "",
 	}
 }
 
 // NewQueryBuilderWithCommandType - builds a new QueryBuilder object with table name and command type
 func NewQueryBuilderWithCommandType(table string, commandType CommandType) *QueryBuilder {
 	return &QueryBuilder{
-		TableName:             table,
-		CommandType:           commandType,
-		StringEnclosingChar:   `'`,
-		StringEscapeChar:      `\`,
-		PreparedStatementChar: `?`,
-		ResultLimitPosition:   REAR,
-		ResultLimit:           "",
+		TableName:              table,
+		CommandType:            commandType,
+		StringEnclosingChar:    `'`,
+		StringEscapeChar:       `\`,
+		PreparedStatementChar:  `?`,
+		ReservedWordEscapeChar: `"`,
+		ResultLimitPosition:    REAR,
+		ResultLimit:            "",
 	}
 }
 
 // NewQueryBuilderBare - builds a new QueryBuilder object without a table name
 func NewQueryBuilderBare() *QueryBuilder {
 	return &QueryBuilder{
-		StringEnclosingChar:   `'`,
-		StringEscapeChar:      `\`,
-		PreparedStatementChar: `?`,
-		ResultLimitPosition:   REAR,
-		ResultLimit:           "",
+		StringEnclosingChar:    `'`,
+		StringEscapeChar:       `\`,
+		PreparedStatementChar:  `?`,
+		ReservedWordEscapeChar: `"`,
+		ResultLimitPosition:    REAR,
+		ResultLimit:            "",
 	}
 }
 
@@ -138,6 +142,7 @@ func NewQueryBuilderWithConfig(table string, commandType CommandType, config cfg
 		PreparedStatementChar:       config.ParameterPlaceholder,
 		PreparedStatementInSequence: config.ParameterInSequence,
 		ResultLimitPosition:         REAR,
+		ReservedWordEscapeChar:      config.ReservedWordEscapeChar,
 		ResultLimit:                 "",
 		dbinfo:                      &config,
 	}
@@ -263,15 +268,14 @@ func (qb *QueryBuilder) addColumn(columnName string, length int) int {
 	return len(qb.Columns) - 1
 }
 
-//CleanStringValue - clean a string value to prevent unescaped string errors for BuildString() function.
+// CleanStringValue - clean a string value to prevent unescaped string errors for BuildString() function.
 func (qb *QueryBuilder) CleanStringValue(Value string) string {
-	s := Value
 
-	if len(s) > 0 {
-		s = strings.Replace(s, qb.StringEnclosingChar, qb.StringEscapeChar+qb.StringEnclosingChar, -1)
+	if len(Value) > 0 {
+		return strings.Replace(Value, qb.StringEnclosingChar, qb.StringEscapeChar+qb.StringEnclosingChar, -1)
 	}
 
-	return s
+	return Value
 }
 
 func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBString bool, defaultValue interface{}, nullDetectValue interface{}) *QueryBuilder {
@@ -352,7 +356,16 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 	if qb.dbinfo != nil {
 		pos := strings.LastIndex(tbn, `.`)
 		if pos == -1 && qb.dbinfo.Schema != "" {
-			tbn = qb.dbinfo.Schema + `.` + tbn
+
+			// Get reserved word escape chars
+			rwe := parseReserveWordsChars(qb.dbinfo.ReservedWordEscapeChar)
+
+			if strings.Index(tbn, rwe[0]) != -1 && strings.Index(tbn, rwe[1]) != -1 {
+				tbn = rwe[0] + qb.dbinfo.Schema + rwe[1] + `.` + tbn
+			} else {
+				tbn = qb.dbinfo.Schema + `.` + tbn
+			}
+
 		}
 	}
 
@@ -518,7 +531,14 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	if qb.dbinfo != nil {
 		pos := strings.LastIndex(tbn, `.`)
 		if pos == -1 && qb.dbinfo.Schema != "" {
-			tbn = qb.dbinfo.Schema + `.` + tbn
+			// Get reserved word escape chars
+			rwe := parseReserveWordsChars(qb.dbinfo.ReservedWordEscapeChar)
+
+			if strings.Index(tbn, rwe[0]) != -1 && strings.Index(tbn, rwe[1]) != -1 {
+				tbn = rwe[0] + qb.dbinfo.Schema + rwe[1] + `.` + tbn
+			} else {
+				tbn = qb.dbinfo.Schema + `.` + tbn
+			}
 		}
 	}
 
@@ -822,4 +842,18 @@ func (qb *QueryBuilder) basicValidation() (bool, string) {
 	*/
 
 	return true, ""
+}
+
+// parseReserveWordsChars always returns two-element array of opening and closing escape chars
+func parseReserveWordsChars(ec string) []string {
+
+	if len(ec) == 1 {
+		return []string{ec, ec}
+	}
+
+	if len(ec) >= 2 {
+		return []string{ec[0:1], ec[1:2]}
+	}
+
+	return []string{`"`, `"`} // default is double quotes
 }
