@@ -8,8 +8,10 @@ import (
 )
 
 func TestBuildDataHelperSelect(t *testing.T) {
-	q := NewQueryBuilder("TableNotSoImportant")
+	q := NewQueryBuilder("{TableNotSoImportant}")
 	q.ResultLimitPosition = REAR
+	q.InterpolateTables = true
+	q.Schema = "carr"
 	q.ResultLimit = "100"
 	q.CommandType = SELECT
 	q.AddColumn("UserKey").AddColumn("UserName").AddColumn("FullName").AddColumn("Gender").AddColumn("Age") //Method chaining

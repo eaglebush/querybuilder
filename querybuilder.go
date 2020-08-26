@@ -80,7 +80,7 @@ type QueryBuilder struct {
 	CommandType                 CommandType         // Command type
 	Columns                     []queryColumn       // Columns of the query
 	Values                      []queryValue        // Values of the columns
-	Order                       []querySort         // oOder by columns
+	Order                       []querySort         // Order by columns
 	Group                       []string            // Group by columns
 	Filter                      []queryFilter       // Query filter
 	StringEnclosingChar         string              // Gets or sets the character that encloses a string in the query
@@ -91,8 +91,8 @@ type QueryBuilder struct {
 	SkipNilWriteColumn          bool                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
 	ResultLimitPosition         ResultLimitPosition // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
 	ResultLimit                 string              // The value of the row limit
-	InterpolateTables           bool
-	Schema                      string
+	InterpolateTables           bool                // When true, all table name with {} around it will be prepended with schema
+	Schema                      string              // When the database info is not applied, this value will be used
 	dbinfo                      *cfg.DatabaseInfo
 }
 
