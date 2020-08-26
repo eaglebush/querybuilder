@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +91,8 @@ type QueryBuilder struct {
 	SkipNilWriteColumn          bool                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
 	ResultLimitPosition         ResultLimitPosition // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
 	ResultLimit                 string              // The value of the row limit
+	InterpolateTables           bool
+	Schema                      string
 	dbinfo                      *cfg.DatabaseInfo
 }
 
@@ -513,10 +516,32 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 
 	retsql += ";"
 
+	if qb.InterpolateTables {
+
+		sch := ``
+
+		// if there is a dbinfo, get the schema
+		if qb.dbinfo != nil {
+			sch = qb.dbinfo.Schema
+		}
+
+		// If there is a schema defined, it will prevail
+		if qb.Schema != "" {
+			sch = qb.Schema
+		}
+
+		// replace table names marked with {table}
+		if sch != "" {
+			sch = sch + `.`
+		}
+		re := regexp.MustCompile(`\{(\w*)\}`)
+		retsql = re.ReplaceAllString(retsql, sch+`$1`)
+	}
+
 	return retsql, nil
 }
 
-//BuildDataHelper - build query for DataHelper (github.com/eaglebush/datahelper)
+// BuildDataHelper - build query for DataHelper (github.com/eaglebush/datahelper)
 func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	retsql := ""
 	retargs := make([]interface{}, 0)
@@ -751,6 +776,28 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 				retargs = append(retargs, v.Value)
 			}
 		}
+	}
+
+	if qb.InterpolateTables {
+
+		sch := ``
+
+		// if there is a dbinfo, get the schema
+		if qb.dbinfo != nil {
+			sch = qb.dbinfo.Schema
+		}
+
+		// If there is a schema defined, it will prevail
+		if qb.Schema != "" {
+			sch = qb.Schema
+		}
+
+		// replace table names marked with {table}
+		if sch != "" {
+			sch = sch + `.`
+		}
+		re := regexp.MustCompile(`\{(\w*)\}`)
+		retsql = re.ReplaceAllString(retsql, sch+`$1`)
 	}
 
 	return retsql, retargs
