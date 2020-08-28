@@ -356,21 +356,6 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 
 	// Auto attach schema if config is specified
 	tbn := qb.TableName
-	if qb.dbinfo != nil {
-		pos := strings.LastIndex(tbn, `.`)
-		if pos == -1 && qb.dbinfo.Schema != "" {
-
-			// Get reserved word escape chars
-			rwe := parseReserveWordsChars(qb.dbinfo.ReservedWordEscapeChar)
-
-			if strings.Index(tbn, rwe[0]) != -1 && strings.Index(tbn, rwe[1]) != -1 {
-				tbn = rwe[0] + qb.dbinfo.Schema + rwe[1] + `.` + tbn
-			} else {
-				tbn = qb.dbinfo.Schema + `.` + tbn
-			}
-
-		}
-	}
 
 	switch qb.CommandType {
 	case SELECT:
@@ -553,19 +538,19 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	// Auto attach schema
 	tbn := qb.TableName
-	if qb.dbinfo != nil {
-		pos := strings.LastIndex(tbn, `.`)
-		if pos == -1 && qb.dbinfo.Schema != "" {
-			// Get reserved word escape chars
-			rwe := parseReserveWordsChars(qb.dbinfo.ReservedWordEscapeChar)
+	// if qb.dbinfo != nil {
+	// 	pos := strings.LastIndex(tbn, `.`)
+	// 	if pos == -1 && qb.dbinfo.Schema != "" {
+	// 		// Get reserved word escape chars
+	// 		rwe := parseReserveWordsChars(qb.dbinfo.ReservedWordEscapeChar)
 
-			if strings.Index(tbn, rwe[0]) != -1 && strings.Index(tbn, rwe[1]) != -1 {
-				tbn = rwe[0] + qb.dbinfo.Schema + rwe[1] + `.` + tbn
-			} else {
-				tbn = qb.dbinfo.Schema + `.` + tbn
-			}
-		}
-	}
+	// 		if strings.Index(tbn, rwe[0]) != -1 && strings.Index(tbn, rwe[1]) != -1 {
+	// 			tbn = rwe[0] + qb.dbinfo.Schema + rwe[1] + `.` + tbn
+	// 		} else {
+	// 			tbn = qb.dbinfo.Schema + `.` + tbn
+	// 		}
+	// 	}
+	// }
 
 	switch qb.CommandType {
 	case SELECT:
