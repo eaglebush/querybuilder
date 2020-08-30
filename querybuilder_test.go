@@ -63,8 +63,11 @@ func TestBuildDataHelperInsert(t *testing.T) {
 }
 
 func TestBuildDataHelperUpdate(t *testing.T) {
-	q := NewQueryBuilder("TableNotSoImportant")
+	q := NewQueryBuilder("{TableNotSoImportant}")
 	q.CommandType = UPDATE
+	q.Schema = "hack"
+
+	q.InterpolateTables = true
 
 	q.PreparedStatementChar = "$"
 	q.PreparedStatementInSequence = true

@@ -516,11 +516,7 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 		}
 
 		// replace table names marked with {table}
-		if sch != "" {
-			sch = sch + `.`
-		}
-		re := regexp.MustCompile(`\{(\w*)\}`)
-		retsql = re.ReplaceAllString(retsql, sch+`$1`)
+		retsql = replaceCustomPlaceHolder(retsql, sch)
 	}
 
 	return retsql, nil
@@ -778,11 +774,8 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 		}
 
 		// replace table names marked with {table}
-		if sch != "" {
-			sch = sch + `.`
-		}
-		re := regexp.MustCompile(`\{(\w*)\}`)
-		retsql = re.ReplaceAllString(retsql, sch+`$1`)
+		retsql = replaceCustomPlaceHolder(retsql, sch)
+
 	}
 
 	return retsql, retargs
@@ -888,4 +881,15 @@ func parseReserveWordsChars(ec string) []string {
 	}
 
 	return []string{`"`, `"`} // default is double quotes
+}
+
+func replaceCustomPlaceHolder(sql string, schema string) string {
+	if schema != "" {
+		schema = schema + `.`
+	}
+
+	re := regexp.MustCompile(`\{([a-zA-Z0-9\[\]\"]*)\}`)
+	sql = re.ReplaceAllString(sql, schema+`$1`)
+
+	return sql
 }
