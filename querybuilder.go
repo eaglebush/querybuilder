@@ -66,6 +66,7 @@ type queryFilter struct {
 	ColumnNameOrExpression string
 	Value                  interface{}
 	IsDBString             bool
+	FilterContainsValue    bool
 }
 
 //QuerySort - sort information
@@ -312,21 +313,36 @@ func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBS
 
 //AddFilterWithValue - adds a filter with value into the QueryBuilder for BuildDataHelper() function.
 func (qb *QueryBuilder) AddFilterWithValue(ColumnNameOrExpression string, Value interface{}) *QueryBuilder {
-	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: ColumnNameOrExpression, Value: Value, IsDBString: true})
+
+	qb.Filter = append(qb.Filter, queryFilter{
+		ColumnNameOrExpression: ColumnNameOrExpression,
+		Value:                  Value,
+		IsDBString:             true,
+	})
 
 	return qb
 }
 
 //AddFilterWithNonStringValue - adds a filter with non-db string value into the QueryBuilder for BuildDataHelper() function.
 func (qb *QueryBuilder) AddFilterWithNonStringValue(ColumnNameOrExpression string, Value interface{}) *QueryBuilder {
-	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: ColumnNameOrExpression, Value: Value, IsDBString: false})
+
+	qb.Filter = append(qb.Filter, queryFilter{
+		ColumnNameOrExpression: ColumnNameOrExpression,
+		Value:                  Value,
+		IsDBString:             false,
+	})
 
 	return qb
 }
 
 //AddFilter - adds a filter into the QueryBuilder for both BuildString() and BuildDataHelper() function.
 func (qb *QueryBuilder) AddFilter(FilterExpression string) *QueryBuilder {
-	qb.Filter = append(qb.Filter, queryFilter{ColumnNameOrExpression: FilterExpression, Value: nil})
+
+	qb.Filter = append(qb.Filter, queryFilter{
+		ColumnNameOrExpression: FilterExpression,
+		Value:                  nil,
+		FilterContainsValue:    true,
+	})
 
 	return qb
 }
@@ -457,9 +473,15 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 			/* Only filters set with value will be rendered here */
 			if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
 				if c.Value != nil {
-					tmpsql += cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{ColumnName: c.ColumnNameOrExpression, Value: c.Value, IsDBString: c.IsDBString})
+					tmpsql += cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{
+						ColumnName: c.ColumnNameOrExpression,
+						Value:      c.Value,
+						IsDBString: c.IsDBString,
+					})
 				} else {
-					tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
+					if !c.FilterContainsValue {
+						tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
+					}
 				}
 
 				cma = " AND "
@@ -641,6 +663,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	cma = ""
 	pchar = ""
 	inscnt := 0
+
 	if qb.CommandType == INSERT {
 
 		q := make([]string, columncnt)
@@ -675,6 +698,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	cma = ""
 	if len(qb.Filter) > 0 {
 		tmpsql := ""
+
 		for _, c := range qb.Filter {
 			/* Only filters set with value will be rendered here */
 			if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
@@ -686,7 +710,9 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 					}
 					tmpsql += cma + c.ColumnNameOrExpression + " = " + pchar
 				} else {
-					tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
+					if !c.FilterContainsValue {
+						tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
+					}
 				}
 
 				cma = " AND "
