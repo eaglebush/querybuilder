@@ -479,8 +479,9 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 						IsDBString: c.IsDBString,
 					})
 				} else {
+					tmpsql += cma + c.ColumnNameOrExpression
 					if !c.FilterContainsValue {
-						tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
+						tmpsql += " IS NULL"
 					}
 				}
 
@@ -710,9 +711,12 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 					}
 					tmpsql += cma + c.ColumnNameOrExpression + " = " + pchar
 				} else {
+
+					tmpsql += cma + c.ColumnNameOrExpression
 					if !c.FilterContainsValue {
-						tmpsql += cma + c.ColumnNameOrExpression + " IS NULL"
+						tmpsql += " IS NULL"
 					}
+
 				}
 
 				cma = " AND "
