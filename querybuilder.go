@@ -363,7 +363,8 @@ func (qb *QueryBuilder) AddGroup(Group string) *QueryBuilder {
 
 //BuildString - build an SQL string from QueryBuilder
 func (qb *QueryBuilder) BuildString() (string, error) {
-	retsql := ""
+
+	var sb strings.Builder
 
 	valid, s := qb.basicValidation()
 	if !valid {
@@ -375,16 +376,16 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 
 	switch qb.CommandType {
 	case SELECT:
-		retsql = "SELECT "
+		sb.WriteString("SELECT ")
 		if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == FRONT {
-			retsql += " TOP " + qb.ResultLimit + " "
+			sb.WriteString(" TOP " + qb.ResultLimit + " ")
 		}
 	case INSERT:
-		retsql = "INSERT INTO " + tbn + " ("
+		sb.WriteString("INSERT INTO " + tbn + " (")
 	case UPDATE:
-		retsql = "UPDATE " + tbn + " SET "
+		sb.WriteString("UPDATE " + tbn + " SET ")
 	case DELETE:
-		retsql = "DELETE FROM " + tbn
+		sb.WriteString("DELETE FROM " + tbn)
 	}
 
 	//build columns (with placeholder for update )
@@ -403,8 +404,11 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 				} else {
 					tv := reflect.ValueOf(v.Value)
 					if tv.IsZero() {
-						if tv.IsNil() {
-							valueIsNil = true
+						k := t.Kind()
+						if k == reflect.Map || k == reflect.Func || k == reflect.Ptr || k == reflect.Slice || k == reflect.Interface {
+							if tv.IsNil() {
+								valueIsNil = true
+							}
 						}
 					}
 				}
@@ -414,19 +418,19 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 
 			switch qb.CommandType {
 			case SELECT:
-				retsql += cma + v.ColumnName
+				sb.WriteString(cma + v.ColumnName)
 				cma = ", "
 			case INSERT:
 				if !qb.Values[idx].skip {
-					retsql += cma + v.ColumnName
+					sb.WriteString(cma + v.ColumnName)
 					cma = ", "
 				}
 			case UPDATE:
 				if !qb.Values[idx].skip {
 					if v.Value != nil {
-						retsql += cma + v.ColumnName + " = " + qb.evaluateValue(v)
+						sb.WriteString(cma + v.ColumnName + " = " + qb.evaluateValue(v))
 					} else {
-						retsql += cma + v.ColumnName + " = NULL"
+						sb.WriteString(cma + v.ColumnName + " = NULL")
 					}
 
 					cma = ", "
@@ -436,7 +440,7 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 	} else {
 		if qb.CommandType == SELECT {
 			for _, v := range qb.Columns {
-				retsql += cma + v.ColumnName
+				sb.WriteString(cma + v.ColumnName)
 				cma = ", "
 			}
 		}
@@ -444,68 +448,74 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 
 	/* Append table name for SELECT*/
 	if qb.CommandType == SELECT {
-		retsql += " FROM " + tbn
+		sb.WriteString(" FROM " + tbn)
 	}
+
+	var tsb strings.Builder
 
 	//build value place holder for insert
 	cma = ""
 	if qb.CommandType == INSERT {
-		tmpsql := ""
 		for idx, v := range qb.Values {
 			if !qb.Values[idx].skip {
 				if v.Value != nil {
-					tmpsql += cma + qb.evaluateValue(v)
+					tsb.WriteString(cma + qb.evaluateValue(v))
 				} else {
-					tmpsql += cma + "NULL"
+					tsb.WriteString(cma + "NULL")
 				}
 
 				cma = ", "
 			}
 		}
-		retsql += ") VALUES (" + tmpsql + ")"
+
+		if tsb.Len() > 0 {
+			sb.WriteString(") VALUES (" + tsb.String() + ")")
+		}
 	}
 
 	//build filters
 	cma = ""
-	if len(qb.Filter) > 0 {
-		tmpsql := ""
-		for _, c := range qb.Filter {
-			/* Only filters set with value will be rendered here */
-			if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
-				if c.Value != nil {
-					tmpsql += cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{
-						ColumnName: c.ColumnNameOrExpression,
-						Value:      c.Value,
-						IsDBString: c.IsDBString,
-					})
-				} else {
-					tmpsql += cma + c.ColumnNameOrExpression
-					if !c.FilterContainsValue {
-						tmpsql += " IS NULL"
-					}
-				}
 
-				cma = " AND "
+	if len(qb.Filter) > 0 && (qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE) {
+		//tmpsql := ""
+		for _, c := range qb.Filter {
+
+			/* Only filters set with value will be rendered here */
+			if c.Value != nil {
+				tsb.WriteString(cma + c.ColumnNameOrExpression + " = " + qb.evaluateValue(queryValue{
+					ColumnName: c.ColumnNameOrExpression,
+					Value:      c.Value,
+					IsDBString: c.IsDBString,
+				}))
+			} else {
+				tsb.WriteString(cma + c.ColumnNameOrExpression)
+				if !c.FilterContainsValue {
+					tsb.WriteString(" IS NULL")
+				}
 			}
+
+			cma = " AND "
+
 		}
 
-		if len(tmpsql) > 0 {
-			retsql += " WHERE " + tmpsql
+		if tsb.Len() > 0 {
+			sb.WriteString(" WHERE " + tsb.String())
 		}
 	}
 
 	//build sort orders
 	cma = ""
 	if len(qb.Order) > 0 {
-		retsql += " ORDER BY "
+		sb.WriteString(" ORDER BY ")
+
 		for _, v := range qb.Order {
-			retsql += cma + v.ColumnName
+			sb.WriteString(cma + v.ColumnName)
 
 			switch v.Order {
 			case ASC:
-				retsql += " ASC"
+				sb.WriteString(" ASC")
 			case DESC:
-				retsql += " DESC"
+				sb.WriteString(" DESC")
 			}
 
 			cma = ", "
@@ -515,14 +525,14 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 	//build group by
 	cma = ""
 	if len(qb.Group) > 0 {
-		retsql += " GROUP BY " + strings.Join(qb.Group, ", ")
+		sb.WriteString(" GROUP BY " + strings.Join(qb.Group, ", "))
 	}
 
 	if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == REAR {
-		retsql += " LIMIT " + qb.ResultLimit
+		sb.WriteString(" LIMIT " + qb.ResultLimit)
 	}
 
-	retsql += ";"
+	sb.WriteString(";")
 
 	if qb.InterpolateTables {
 
@@ -539,15 +549,17 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 		}
 
 		// replace table names marked with {table}
-		retsql = replaceCustomPlaceHolder(retsql, sch)
+		return replaceCustomPlaceHolder(sb.String(), sch), nil
 	}
 
-	return retsql, nil
+	return sb.String(), nil
 }
 
 // BuildDataHelper - build query for DataHelper (github.com/eaglebush/datahelper)
 func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
-	retsql := ""
+
+	var sb strings.Builder
+
 	retargs := make([]interface{}, 0)
 
 	valid, s := qb.basicValidation()
@@ -573,16 +585,16 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	switch qb.CommandType {
 	case SELECT:
-		retsql = "SELECT "
+		sb.WriteString("SELECT ")
 		if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == FRONT {
-			retsql += " TOP " + qb.ResultLimit + " "
+			sb.WriteString(" TOP " + qb.ResultLimit + " ")
 		}
 	case INSERT:
-		retsql = "INSERT INTO " + tbn + " ("
+		sb.WriteString("INSERT INTO " + tbn + " (")
 	case UPDATE:
-		retsql = "UPDATE " + tbn + " SET "
+		sb.WriteString("UPDATE " + tbn + " SET ")
 	case DELETE:
-		retsql = "DELETE FROM " + tbn
+		sb.WriteString("DELETE FROM " + tbn)
 	}
 
 	//build columns (with placeholder for update )
@@ -620,18 +632,18 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 		switch qb.CommandType {
 		case SELECT:
-			retsql += cma + v.ColumnName
+			sb.WriteString(cma + v.ColumnName)
 			cma = ", "
 			columncnt++
 		case INSERT:
 			if !qb.Values[idx].skip {
-				retsql += cma + v.ColumnName
+				sb.WriteString(cma + v.ColumnName)
 				cma = ", "
 				columncnt++
 			}
 		case UPDATE:
 			if !qb.Values[idx].skip {
-				retsql += cma + v.ColumnName
+				sb.WriteString(cma + v.ColumnName)
 				pchar = " = "
 
 				if v.IsDBString {
@@ -648,7 +660,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 					}
 				}
 
-				retsql += pchar
+				sb.WriteString(pchar)
 				cma = ", "
 				columncnt++
 			}
@@ -657,7 +669,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	/* Append table name for SELECT*/
 	if qb.CommandType == SELECT {
-		retsql += " FROM " + tbn
+		sb.WriteString(" FROM " + tbn)
 	}
 
 	//build value place holder for insert
@@ -691,14 +703,15 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 			}
 		}
 
-		retsql += ") VALUES (" + strings.Join(q, "") + ")"
+		sb.WriteString(") VALUES (" + strings.Join(q, "") + ")")
 
 	}
 
 	//build filters
 	cma = ""
+	var tsb strings.Builder
 	if len(qb.Filter) > 0 {
-		tmpsql := ""
+		//tmpsql := ""
 
 		for _, c := range qb.Filter {
 			/* Only filters set with value will be rendered here */
@@ -709,12 +722,12 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
-					tmpsql += cma + c.ColumnNameOrExpression + " = " + pchar
+					tsb.WriteString(cma + c.ColumnNameOrExpression + " = " + pchar)
 				} else {
 
-					tmpsql += cma + c.ColumnNameOrExpression
+					tsb.WriteString(cma + c.ColumnNameOrExpression)
 					if !c.FilterContainsValue {
-						tmpsql += " IS NULL"
+						tsb.WriteString(" IS NULL")
 					}
 
 				}
@@ -723,23 +736,22 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 			}
 		}
 
-		if len(tmpsql) > 0 {
-			retsql += " WHERE " + tmpsql
+		if tsb.Len() > 0 {
+			sb.WriteString(" WHERE " + tsb.String())
 		}
 	}
 
 	//build sort orders
 	cma = ""
 	if len(qb.Order) > 0 {
-		retsql += " ORDER BY "
+		sb.WriteString(" ORDER BY ")
 		for _, v := range qb.Order {
-			retsql += cma + v.ColumnName
-
+			sb.WriteString(cma + v.ColumnName)
 			switch v.Order {
 			case ASC:
-				retsql += " ASC"
+				sb.WriteString(" ASC")
 			case DESC:
-				retsql += " DESC"
+				sb.WriteString(" DESC")
 			}
 
 			cma = ", "
@@ -749,14 +761,14 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	//build group by
 	cma = ""
 	if len(qb.Group) > 0 {
-		retsql += " GROUP BY " + strings.Join(qb.Group, ", ")
+		sb.WriteString(" GROUP BY " + strings.Join(qb.Group, ", "))
 	}
 
 	if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == REAR {
-		retsql += " LIMIT " + qb.ResultLimit
+		sb.WriteString(" LIMIT " + qb.ResultLimit)
 	}
 
-	retsql += ";"
+	sb.WriteString(";")
 
 	//build values
 	for _, v := range qb.Values {
@@ -804,11 +816,11 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 		}
 
 		// replace table names marked with {table}
-		retsql = replaceCustomPlaceHolder(retsql, sch)
+		return replaceCustomPlaceHolder(sb.String(), sch), retargs
 
 	}
 
-	return retsql, retargs
+	return sb.String(), retargs
 }
 
 func (qb *QueryBuilder) evaluateValue(value queryValue) string {
