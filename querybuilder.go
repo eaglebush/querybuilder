@@ -52,7 +52,14 @@ type queryColumn struct {
 	Length     int
 }
 
-//QueryValue struct
+// ValueOption options for adding values
+type ValueOption struct {
+	DBString   bool        // Sets if the value is a DB string. When true, this value is enclosed in single quote to represent as string
+	Default    interface{} // When set to non-nil, this is the default value when the value encounters a nil
+	NullDetect interface{} // When set to non-nil value, when the value matches with this, the resulting value will be set to NULL
+}
+
+// QueryValue struct
 type queryValue struct {
 	ColumnName      string
 	Value           interface{}
@@ -173,8 +180,34 @@ func (qb *QueryBuilder) AddColumnWithLength(ColumnName string, Length int) *Quer
 	return qb
 }
 
-//SetColumnValue - sets the column value
-func (qb *QueryBuilder) SetColumnValue(ColumnName string, Value interface{}, IsSQLFunction bool) *QueryBuilder {
+// AddValue adds a value enclosed with string quotes when the CommandType is INSERT or UPDATE upon building
+func (qb *QueryBuilder) AddValue(ColumnName string, Value interface{}, vo *ValueOption) *QueryBuilder {
+
+	ci := qb.addColumn(ColumnName, 8000)
+
+	var (
+		dbstr   bool
+		defval  interface{}
+		nulldet interface{}
+	)
+
+	dbstr = true
+	defval = nil
+	nulldet = nil
+
+	if vo != nil {
+		dbstr = vo.DBString
+		defval = vo.Default
+		nulldet = vo.NullDetect
+	}
+
+	qb.setColumnValue(ci, Value, dbstr, defval, nulldet)
+
+	return qb
+}
+
+// SetColumnValue - sets the column value
+func (qb *QueryBuilder) SetColumnValue(ColumnName string, Value interface{}) *QueryBuilder {
 	//only allows non-DELETE statements
 	if qb.CommandType != DELETE {
 		idx := -1
@@ -194,84 +227,6 @@ func (qb *QueryBuilder) SetColumnValue(ColumnName string, Value interface{}, IsS
 	return qb
 }
 
-//AddColumnValue - adds a column and a value. The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnValue(ColumnName string, Value interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, true, nil, nil)
-
-	return qb
-}
-
-//AddColumnNonStringValue - adds a column and a value. The value is not enclosed in a string when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnNonStringValue(ColumnName string, Value interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, false, nil, nil)
-
-	return qb
-}
-
-//AddColumnValueWithDefault - adds a column and a value with default value for BuildString() function. The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnValueWithDefault(ColumnName string, Value interface{}, Default interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, true, Default, nil)
-
-	return qb
-}
-
-//AddColumnNonStringValueWithDefault - adds a column and a value with default value for BuildString() function. The value is not enclosed in a string when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnNonStringValueWithDefault(ColumnName string, Value interface{}, Default interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, false, Default, nil)
-
-	return qb
-}
-
-//AddColumnValueNull - adds a column and a value with null detection. The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnValueNull(ColumnName string, Value interface{}, NullDetectValue interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, true, nil, NullDetectValue)
-
-	return qb
-}
-
-//AddColumnNonStringValueNull - adds a column and a value with null detection for non-string value.  The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnNonStringValueNull(ColumnName string, Value interface{}, NullDetectValue interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, false, nil, NullDetectValue)
-
-	return qb
-}
-
-//AddColumnValueWithDefaultNull - adds a column and a value with default value and null detection for BuildString() function. The value is enclosed with string quotes when the CommandType is INSERT or UPDATE
-func (qb *QueryBuilder) AddColumnValueWithDefaultNull(ColumnName string, Value interface{}, Default interface{}, NullDetectValue interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, true, Default, NullDetectValue)
-
-	return qb
-}
-
-//AddColumnNonStringValueDefaultNull - adds a column and a value with default value and null detection for BuildString() function.
-func (qb *QueryBuilder) AddColumnNonStringValueDefaultNull(ColumnName string, Value interface{}, Default interface{}, NullDetectValue interface{}) *QueryBuilder {
-	ci := qb.addColumn(ColumnName, 255)
-	qb.setColumnValue(ci, Value, false, Default, NullDetectValue)
-
-	return qb
-}
-
-func (qb *QueryBuilder) addColumn(columnName string, length int) int {
-
-	c := strings.ToLower(columnName)
-	for i, v := range qb.Columns {
-		if c == strings.ToLower(v.ColumnName) {
-			return i
-		}
-	}
-
-	qb.Columns = append(qb.Columns, queryColumn{ColumnName: columnName, Length: length})
-
-	return len(qb.Columns) - 1
-}
-
 // CleanStringValue - clean a string value to prevent unescaped string errors for BuildString() function.
 func (qb *QueryBuilder) CleanStringValue(Value string) string {
 
@@ -282,54 +237,13 @@ func (qb *QueryBuilder) CleanStringValue(Value string) string {
 	return Value
 }
 
-func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBString bool, defaultValue interface{}, nullDetectValue interface{}) *QueryBuilder {
-	c := strings.ToLower(qb.Columns[ColumnIndex].ColumnName)
-	idx := -1
-	for i, v := range qb.Values {
-		vc := strings.ToLower(v.ColumnName)
-		if c == vc {
-			idx = i
-			break
-		}
-	}
-
-	if idx == -1 {
-		qb.Values = append(qb.Values, queryValue{
-			ColumnName:      qb.Columns[ColumnIndex].ColumnName,
-			IsDBString:      isDBString,
-			DefaultValue:    defaultValue,
-			NullDetectValue: nullDetectValue,
-			Value:           value,
-		})
-	} else {
-		qb.Values[idx].IsDBString = isDBString
-		qb.Values[idx].DefaultValue = defaultValue
-		qb.Values[idx].NullDetectValue = nullDetectValue
-		qb.Values[idx].Value = value
-	}
-
-	return qb
-}
-
 //AddFilterWithValue - adds a filter with value into the QueryBuilder for BuildDataHelper() function.
-func (qb *QueryBuilder) AddFilterWithValue(ColumnNameOrExpression string, Value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) AddFilterWithValue(ColumnNameOrExpression string, Value interface{}, DBString bool) *QueryBuilder {
 
 	qb.Filter = append(qb.Filter, queryFilter{
 		ColumnNameOrExpression: ColumnNameOrExpression,
 		Value:                  Value,
-		IsDBString:             true,
-	})
-
-	return qb
-}
-
-//AddFilterWithNonStringValue - adds a filter with non-db string value into the QueryBuilder for BuildDataHelper() function.
-func (qb *QueryBuilder) AddFilterWithNonStringValue(ColumnNameOrExpression string, Value interface{}) *QueryBuilder {
-
-	qb.Filter = append(qb.Filter, queryFilter{
-		ColumnNameOrExpression: ColumnNameOrExpression,
-		Value:                  Value,
-		IsDBString:             false,
+		IsDBString:             DBString,
 	})
 
 	return qb
@@ -456,14 +370,11 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 	//build value place holder for insert
 	cma = ""
 	if qb.CommandType == INSERT {
-		for idx, v := range qb.Values {
-			if !qb.Values[idx].skip {
-				if v.Value != nil {
-					tsb.WriteString(cma + qb.evaluateValue(v))
-				} else {
-					tsb.WriteString(cma + "NULL")
-				}
 
+		for idx, v := range qb.Values {
+
+			if !qb.Values[idx].skip {
+				tsb.WriteString(cma + qb.evaluateValue(v))
 				cma = ", "
 			}
 		}
@@ -569,19 +480,6 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 
 	// Auto attach schema
 	tbn := qb.TableName
-	// if qb.dbinfo != nil {
-	// 	pos := strings.LastIndex(tbn, `.`)
-	// 	if pos == -1 && qb.dbinfo.Schema != "" {
-	// 		// Get reserved word escape chars
-	// 		rwe := parseReserveWordsChars(qb.dbinfo.ReservedWordEscapeChar)
-
-	// 		if strings.Index(tbn, rwe[0]) != -1 && strings.Index(tbn, rwe[1]) != -1 {
-	// 			tbn = rwe[0] + qb.dbinfo.Schema + rwe[1] + `.` + tbn
-	// 		} else {
-	// 			tbn = qb.dbinfo.Schema + `.` + tbn
-	// 		}
-	// 	}
-	// }
 
 	switch qb.CommandType {
 	case SELECT:
@@ -646,15 +544,15 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 				sb.WriteString(cma + v.ColumnName)
 				pchar = " = "
 
-				if v.IsDBString {
-					pchar += qb.PreparedStatementChar
-					if qb.PreparedStatementInSequence {
-						paramcnt++
-						pchar += strconv.Itoa(paramcnt)
-					}
+				if nullnow {
+					pchar += "NULL "
 				} else {
-					if nullnow {
-						pchar += " NULL "
+					if v.IsDBString {
+						pchar += qb.PreparedStatementChar
+						if qb.PreparedStatementInSequence {
+							paramcnt++
+							pchar += strconv.Itoa(paramcnt)
+						}
 					} else {
 						pchar += v.Value.(string)
 					}
@@ -823,6 +721,49 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 	return sb.String(), retargs
 }
 
+func (qb *QueryBuilder) addColumn(columnName string, length int) int {
+
+	c := strings.ToLower(columnName)
+	for i, v := range qb.Columns {
+		if c == strings.ToLower(v.ColumnName) {
+			return i
+		}
+	}
+
+	qb.Columns = append(qb.Columns, queryColumn{ColumnName: columnName, Length: length})
+
+	return len(qb.Columns) - 1
+}
+
+func (qb *QueryBuilder) setColumnValue(ColumnIndex int, value interface{}, isDBString bool, defaultValue interface{}, nullDetectValue interface{}) *QueryBuilder {
+	c := strings.ToLower(qb.Columns[ColumnIndex].ColumnName)
+	idx := -1
+	for i, v := range qb.Values {
+		vc := strings.ToLower(v.ColumnName)
+		if c == vc {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		qb.Values = append(qb.Values, queryValue{
+			ColumnName:      qb.Columns[ColumnIndex].ColumnName,
+			IsDBString:      isDBString,
+			DefaultValue:    defaultValue,
+			NullDetectValue: nullDetectValue,
+			Value:           value,
+		})
+	} else {
+		qb.Values[idx].IsDBString = isDBString
+		qb.Values[idx].DefaultValue = defaultValue
+		qb.Values[idx].NullDetectValue = nullDetectValue
+		qb.Values[idx].Value = value
+	}
+
+	return qb
+}
+
 func (qb *QueryBuilder) evaluateValue(value queryValue) string {
 	s := ""
 	var final interface{}
@@ -839,6 +780,11 @@ func (qb *QueryBuilder) evaluateValue(value queryValue) string {
 		if final == value.NullDetectValue {
 			s = "NULL"
 		}
+	}
+
+	if final == nil {
+		final = "NULL"
+		value.IsDBString = false
 	}
 
 	if final != nil && len(s) == 0 {
