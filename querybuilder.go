@@ -145,16 +145,17 @@ func NewQueryBuilderBare() *QueryBuilder {
 
 // NewQueryBuilderWithConfig - builds a new QueryBuilder object with a table name, command type and a configuration DatabaseInfo
 func NewQueryBuilderWithConfig(table string, commandType CommandType, config cfg.DatabaseInfo) *QueryBuilder {
+
 	return &QueryBuilder{
 		TableName:                   table,
 		CommandType:                 commandType,
-		StringEnclosingChar:         `'`,
-		StringEscapeChar:            `\`,
+		StringEnclosingChar:         config.StringEnclosingChar,
+		StringEscapeChar:            config.StringEscapeChar,
 		PreparedStatementChar:       config.ParameterPlaceholder,
 		PreparedStatementInSequence: config.ParameterInSequence,
 		ResultLimitPosition:         REAR,
 		ReservedWordEscapeChar:      config.ReservedWordEscapeChar,
-		ResultLimit:                 "",
+		ResultLimit:                 ``,
 		dbinfo:                      &config,
 	}
 }
