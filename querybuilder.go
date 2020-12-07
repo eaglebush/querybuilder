@@ -140,6 +140,7 @@ func NewQueryBuilderBare() *QueryBuilder {
 		ReservedWordEscapeChar: `"`,
 		ResultLimitPosition:    REAR,
 		ResultLimit:            "",
+		InterpolateTables:      false,
 	}
 }
 
@@ -155,6 +156,7 @@ func NewQueryBuilderWithConfig(table string, commandType CommandType, config cfg
 		PreparedStatementInSequence: config.ParameterInSequence,
 		ResultLimitPosition:         REAR,
 		ReservedWordEscapeChar:      config.ReservedWordEscapeChar,
+		InterpolateTables:           config.InterpolateTables,
 		ResultLimit:                 ``,
 		dbinfo:                      &config,
 	}
@@ -461,7 +463,7 @@ func (qb *QueryBuilder) BuildString() (string, error) {
 		}
 
 		// replace table names marked with {table}
-		return replaceCustomPlaceHolder(sb.String(), sch), nil
+		return InterpolateTable(sb.String(), sch), nil
 	}
 
 	return sb.String(), nil
@@ -715,7 +717,7 @@ func (qb *QueryBuilder) BuildDataHelper() (query string, args []interface{}) {
 		}
 
 		// replace table names marked with {table}
-		return replaceCustomPlaceHolder(sb.String(), sch), retargs
+		return InterpolateTable(sb.String(), sch), retargs
 
 	}
 
@@ -872,7 +874,8 @@ func parseReserveWordsChars(ec string) []string {
 	return []string{`"`, `"`} // default is double quotes
 }
 
-func replaceCustomPlaceHolder(sql string, schema string) string {
+// InterpolateTable - interpolate the tables specified with curly braces {} with a schema
+func InterpolateTable(sql string, schema string) string {
 	if schema != "" {
 		schema = schema + `.`
 	}
