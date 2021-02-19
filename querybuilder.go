@@ -150,13 +150,13 @@ func NewQueryBuilderWithConfig(table string, commandType CommandType, config cfg
 	return &QueryBuilder{
 		TableName:                   table,
 		CommandType:                 commandType,
-		StringEnclosingChar:         config.StringEnclosingChar,
-		StringEscapeChar:            config.StringEscapeChar,
+		StringEnclosingChar:         *config.StringEnclosingChar,
+		StringEscapeChar:            *config.StringEscapeChar,
 		PreparedStatementChar:       config.ParameterPlaceholder,
 		PreparedStatementInSequence: config.ParameterInSequence,
 		ResultLimitPosition:         REAR,
-		ReservedWordEscapeChar:      config.ReservedWordEscapeChar,
-		InterpolateTables:           config.InterpolateTables,
+		ReservedWordEscapeChar:      *config.ReservedWordEscapeChar,
+		InterpolateTables:           *config.InterpolateTables,
 		ResultLimit:                 ``,
 		dbinfo:                      &config,
 	}
