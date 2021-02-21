@@ -47,6 +47,12 @@ const (
 	REAR  Limit = 1
 )
 
+// errors
+var (
+	ErrNoTableSpecified  = errors.New("Table or view was not specified")
+	ErrNoColumnSpecified = errors.New("No columns were specified")
+)
+
 // ValueOption options for adding values
 type ValueOption struct {
 	SQLString   bool        // Sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
@@ -270,11 +276,11 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	args = make([]interface{}, 0)
 
 	if qb.TableName == "" {
-		return "", nil, errors.New("TableName was not specified")
+		return "", nil, ErrNoTableSpecified
 	}
 
 	if len(qb.Columns) == 0 && qb.CommandType != DELETE {
-		return "", nil, errors.New("No columns were specified")
+		return "", nil, ErrNoColumnSpecified
 	}
 
 	// get real values of qb.Values and set them back
