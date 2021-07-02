@@ -317,9 +317,11 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	pchar := ""
 	paramcnt := 0
 	columncnt := 0
+	forcenull := false
 
 	for idx, v := range qb.Values {
 
+		forcenull = false
 		isnl := isnil(v.value)
 
 		// If value is nil, get defvalue
@@ -331,6 +333,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		// If matchtonull is true, column value is nil
 		if !isnl && !isnil(v.matchtonull) && v.matchtonull == v.value {
 			isnl = true
+			forcenull = true
 		}
 
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
@@ -352,7 +355,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			columncnt++
 		case UPDATE:
 
-			if qb.Values[idx].skip {
+			if qb.Values[idx].skip && !forcenull {
 				break
 			}
 
