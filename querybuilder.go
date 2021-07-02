@@ -369,7 +369,25 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 						pchar += strconv.Itoa(paramcnt)
 					}
 				} else {
-					pchar += v.value.(string)
+					switch t := v.value.(type) {
+					case string:
+						pchar += t
+					case int:
+						pchar += strconv.Itoa(t)
+					case int64:
+						pchar += strconv.FormatInt(t, 10)
+					case bool:
+						if t {
+							pchar += "1"
+						} else {
+							pchar += "0"
+						}
+					case float32:
+						pchar += strconv.FormatFloat(float64(t), 'E', -1, 32)
+					case float64:
+						pchar += strconv.FormatFloat(t, 'E', -1, 64)
+					}
+
 				}
 			}
 
