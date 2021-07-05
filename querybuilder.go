@@ -334,6 +334,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		if !isnl && !isnil(v.matchtonull) && v.matchtonull == v.value {
 			isnl = true
 			qb.Values[idx].forcenull = true
+			qb.Values[idx].sqlstring = true
 		}
 
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil

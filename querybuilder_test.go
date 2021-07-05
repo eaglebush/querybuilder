@@ -102,6 +102,8 @@ func TestBuildDataHelperInsert(t *testing.T) {
 	q.AddValue("PackedInterface1", pinf1, nil)
 	q.AddValue("PackedInterface2", pinf2, nil)
 
+	q.AddValue("TraderAddrClassKey", 0, &ValueOption{MatchToNull: 0})
+
 	s, v, err := q.Build()
 	if err != nil {
 		t.Logf("Error: %e", err)
