@@ -72,6 +72,7 @@ type queryValue struct {
 	matchtonull interface{} // when primary value is matched by this value, it will set the value to NULL
 	sqlstring   bool        // indicates if the value is an SQL string
 	skip        bool        // skip this query value
+	forcenull   bool        // forced to null
 }
 
 type queryFilter struct {
@@ -317,11 +318,10 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	pchar := ""
 	paramcnt := 0
 	columncnt := 0
-	forcenull := false
 
 	for idx, v := range qb.Values {
 
-		forcenull = false
+		qb.Values[idx].forcenull = false
 		isnl := isnil(v.value)
 
 		// If value is nil, get defvalue
@@ -333,7 +333,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		// If matchtonull is true, column value is nil
 		if !isnl && !isnil(v.matchtonull) && v.matchtonull == v.value {
 			isnl = true
-			forcenull = true
+			qb.Values[idx].forcenull = true
 		}
 
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
@@ -346,7 +346,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			columncnt++
 		case INSERT:
 
-			if qb.Values[idx].skip && !forcenull {
+			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
 				break
 			}
 
@@ -355,7 +355,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			columncnt++
 		case UPDATE:
 
-			if qb.Values[idx].skip && !forcenull {
+			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
 				break
 			}
 
@@ -415,7 +415,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 		for _, v := range qb.Values {
 
-			if v.skip {
+			if v.skip && !v.forcenull {
 				continue
 			}
 
