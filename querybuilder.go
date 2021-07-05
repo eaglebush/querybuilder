@@ -422,7 +422,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 			pchar = "NULL"
 
-			if !isnil(v.value) {
+			if !isnil(v.value) && !v.forcenull {
 
 				if !v.sqlstring {
 					pchar, _ = v.value.(string)
@@ -514,7 +514,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		if v.skip ||
 			!v.sqlstring ||
 			!(qb.CommandType == INSERT || qb.CommandType == UPDATE) ||
-			isnil(v.value) {
+			isnil(v.value) ||
+			v.forcenull {
 
 			continue
 		}
