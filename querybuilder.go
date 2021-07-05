@@ -346,7 +346,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			columncnt++
 		case INSERT:
 
-			if qb.Values[idx].skip {
+			if qb.Values[idx].skip && !forcenull {
 				break
 			}
 
