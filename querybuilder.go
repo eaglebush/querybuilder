@@ -16,6 +16,7 @@ import (
 	"time"
 
 	cfg "github.com/eaglebush/config"
+	ssd "github.com/shopspring/decimal"
 )
 
 // Command - the type of command to perform
@@ -49,8 +50,8 @@ const (
 
 // errors
 var (
-	ErrNoTableSpecified  = errors.New("Table or view was not specified")
-	ErrNoColumnSpecified = errors.New("No columns were specified")
+	ErrNoTableSpecified  = errors.New("table or view was not specified")
+	ErrNoColumnSpecified = errors.New("no columns were specified")
 )
 
 // ValueOption options for adding values
@@ -658,7 +659,9 @@ func realvalue(value interface{}) interface{} {
 func getv(input interface{}) (ret interface{}) {
 
 	switch t := input.(type) {
-	case string, int, int8, int16, int32, int64, float32, float64, time.Time, bool, byte, []byte:
+	case string, int, int8, int16, int32,
+		int64, float32, float64, time.Time, bool,
+		byte, []byte, ssd.Decimal:
 		ret = t
 	case *string:
 		ret = *t
@@ -683,6 +686,8 @@ func getv(input interface{}) (ret interface{}) {
 	case *byte:
 		ret = *t
 	case *[]byte:
+		ret = *t
+	case *ssd.Decimal:
 		ret = *t
 	}
 
