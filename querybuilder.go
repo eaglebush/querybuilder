@@ -106,6 +106,7 @@ type QueryBuilder struct {
 	ResultLimit                 string        // The value of the row limit
 	InterpolateTables           bool          // When true, all table name with {} around it will be prepended with schema
 	Schema                      string        // When the database info is not applied, this value will be used
+	ParameterOffset             int           // The parameter sequence offset
 	dbinfo                      *cfg.DatabaseInfo
 }
 
@@ -317,7 +318,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	// build columns (with placeholder for update )
 	cma := ""
 	pchar := ""
-	paramcnt := 0
+	paramcnt := qb.ParameterOffset
 	columncnt := 0
 
 	for idx, v := range qb.Values {
@@ -549,6 +550,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		// replace table names marked with {table}
 		query = InterpolateTable(query, sch)
 	}
+
+	qb.ParameterOffset = paramcnt
 
 	return
 }
