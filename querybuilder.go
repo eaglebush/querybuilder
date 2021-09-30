@@ -697,8 +697,8 @@ func getv(input interface{}) (ret interface{}) {
 	return
 }
 
-// parseReserveWordsChars always returns two-element array of opening and closing escape chars
-func parseReserveWordsChars(ec string) []string {
+// ParseReserveWordsChars always returns two-element array of opening and closing escape chars
+func ParseReserveWordsChars(ec string) []string {
 
 	if len(ec) == 1 {
 		return []string{ec, ec}
