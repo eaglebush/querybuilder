@@ -144,7 +144,30 @@ func NewQueryBuilderBare() *QueryBuilder {
 
 // NewQueryBuilderWithConfig - builds a new QueryBuilder object with a table name, command type and a configuration DatabaseInfo
 func NewQueryBuilderWithConfig(table string, commandType Command, config cfg.DatabaseInfo) *QueryBuilder {
+	return newConfigBuilder(table, UPDATE, config, false)
+}
 
+// NewSelect is a shortcut builder for Select queries
+func NewSelect(table string, config cfg.DatabaseInfo) *QueryBuilder {
+	return newConfigBuilder(table, DELETE, config, false)
+}
+
+// NewInsert is a shortcut builder for Insert queries
+func NewInsert(table string, config cfg.DatabaseInfo, skipnull bool) *QueryBuilder {
+	return newConfigBuilder(table, INSERT, config, skipnull)
+}
+
+// NewUpdate is a shortcut builder for Update queries
+func NewUpdate(table string, config cfg.DatabaseInfo, skipnull bool) *QueryBuilder {
+	return newConfigBuilder(table, UPDATE, config, skipnull)
+}
+
+// NewDelete is a shortcut builder for Delete queries
+func NewDelete(table string, config cfg.DatabaseInfo) *QueryBuilder {
+	return newConfigBuilder(table, DELETE, config, false)
+}
+
+func newConfigBuilder(table string, commandType Command, config cfg.DatabaseInfo, skipnull bool) *QueryBuilder {
 	return &QueryBuilder{
 		TableName:                   table,
 		CommandType:                 commandType,
@@ -156,6 +179,7 @@ func NewQueryBuilderWithConfig(table string, commandType Command, config cfg.Dat
 		ReservedWordEscapeChar:      *config.ReservedWordEscapeChar,
 		InterpolateTables:           *config.InterpolateTables,
 		ResultLimit:                 ``,
+		SkipNilWriteColumn:          skipnull,
 		dbinfo:                      &config,
 	}
 }
