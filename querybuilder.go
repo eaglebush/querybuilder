@@ -153,8 +153,8 @@ func NewSelect(table string, config cfg.DatabaseInfo) *QueryBuilder {
 }
 
 // NewInsert is a shortcut builder for Insert queries
-func NewInsert(table string, config cfg.DatabaseInfo, skipnull bool) *QueryBuilder {
-	return newConfigBuilder(table, INSERT, config, skipnull)
+func NewInsert(table string, config cfg.DatabaseInfo) *QueryBuilder {
+	return newConfigBuilder(table, INSERT, config, false)
 }
 
 // NewUpdate is a shortcut builder for Update queries
