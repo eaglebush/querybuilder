@@ -149,7 +149,7 @@ func NewQueryBuilderWithConfig(table string, commandType Command, config cfg.Dat
 
 // NewSelect is a shortcut builder for Select queries
 func NewSelect(table string, config cfg.DatabaseInfo) *QueryBuilder {
-	return newConfigBuilder(table, DELETE, config, false)
+	return newConfigBuilder(table, SELECT, config, false)
 }
 
 // NewInsert is a shortcut builder for Insert queries
