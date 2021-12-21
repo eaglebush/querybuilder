@@ -2,7 +2,6 @@ package querybuilder
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -120,6 +119,8 @@ func TestBuildDataHelperSelectWithFilterBuilderValues(t *testing.T) {
 		},
 	}
 
+	_ = fbv
+
 	ac := `APPSHUB-AUTH`
 
 	data := sample{
@@ -145,16 +146,16 @@ func TestBuildDataHelperSelectWithFilterBuilderValues(t *testing.T) {
 
 	qb.AddFilterExp("Wacky = Yes")
 
-	qb.FilterFunc = func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) {
-		fbv.ParameterOffset = paramoffset
-		fbv.ParameterPlaceholder = paramchar
-		fbv.ParameterInSequence = paraminseq
-		s, a, err := fbv.Build()
-		if err != nil {
-			log.Printf("error: %s", err)
-		}
-		return s, a
-	}
+	// qb.FilterFunc = func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) {
+	// 	fbv.ParameterOffset = paramoffset
+	// 	fbv.ParameterPlaceholder = paramchar
+	// 	fbv.ParameterInSequence = paraminseq
+	// 	s, a, err := fbv.Build()
+	// 	if err != nil {
+	// 		log.Printf("error: %s", err)
+	// 	}
+	// 	return s, a
+	// }
 
 	sql, values, err := qb.Build()
 	if err != nil {

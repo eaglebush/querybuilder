@@ -501,11 +501,13 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			}
 		}
 
-		fbs, fbargs := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
-		if len(fbs) > 0 {
-			args = append(args, fbargs...)
-			for _, fb := range fbs {
-				tsb.WriteString(cma + fb)
+		if qb.FilterFunc != nil {
+			fbs, fbargs := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
+			if len(fbs) > 0 {
+				args = append(args, fbargs...)
+				for _, fb := range fbs {
+					tsb.WriteString(cma + fb)
+				}
 			}
 		}
 
