@@ -144,7 +144,7 @@ func NewQueryBuilderBare() *QueryBuilder {
 
 // NewQueryBuilderWithConfig - builds a new QueryBuilder object with a table name, command type and a configuration DatabaseInfo
 func NewQueryBuilderWithConfig(table string, commandType Command, config cfg.DatabaseInfo) *QueryBuilder {
-	return newConfigBuilder(table, UPDATE, config, false)
+	return newConfigBuilder(table, commandType, config, false)
 }
 
 // NewSelect is a shortcut builder for Select queries
