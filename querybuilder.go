@@ -89,25 +89,26 @@ type querySort struct {
 
 // QueryBuilder - a class to build SQL queries
 type QueryBuilder struct {
-	TableName                   string        // Table or view name of the query
-	CommandType                 Command       // Command type
-	Columns                     []queryColumn // Columns of the query
-	Values                      []queryValue  // Values of the columns
-	Order                       []querySort   // Order by columns
-	Group                       []string      // Group by columns
-	Filter                      []queryFilter // Query filter
-	StringEnclosingChar         string        // Gets or sets the character that encloses a string in the query
-	StringEscapeChar            string        // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
-	ReservedWordEscapeChar      string        // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
-	PreparedStatementChar       string        // Gets or sets the character placeholder for prepared statements
-	PreparedStatementInSequence bool          // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
-	SkipNilWriteColumn          bool          // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	ResultLimitPosition         Limit         // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
-	ResultLimit                 string        // The value of the row limit
-	InterpolateTables           bool          // When true, all table name with {} around it will be prepended with schema
-	Schema                      string        // When the database info is not applied, this value will be used
-	ParameterOffset             int           // The parameter sequence offset
-	dbinfo                      *cfg.DatabaseInfo
+	TableName              string                                                                             // Table or view name of the query
+	CommandType            Command                                                                            // Command type
+	Columns                []queryColumn                                                                      // Columns of the query
+	Values                 []queryValue                                                                       // Values of the columns
+	Order                  []querySort                                                                        // Order by columns
+	Group                  []string                                                                           // Group by columns
+	Filter                 []queryFilter                                                                      // Query filter
+	StringEnclosingChar    string                                                                             // Gets or sets the character that encloses a string in the query
+	StringEscapeChar       string                                                                             // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
+	ReservedWordEscapeChar string                                                                             // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
+	ParameterChar          string                                                                             // Gets or sets the character placeholder for prepared statements
+	ParameterInSequence    bool                                                                               // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
+	SkipNilWriteColumn     bool                                                                               // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	ResultLimitPosition    Limit                                                                              // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
+	ResultLimit            string                                                                             // The value of the row limit
+	InterpolateTables      bool                                                                               // When true, all table name with {} around it will be prepended with schema
+	Schema                 string                                                                             // When the database info is not applied, this value will be used
+	ParameterOffset        int                                                                                // The parameter sequence offset
+	FilterFunc             func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
+	dbinfo                 *cfg.DatabaseInfo
 }
 
 // NewQueryBuilder - builds a new QueryBuilder object
@@ -134,7 +135,7 @@ func NewQueryBuilderBare() *QueryBuilder {
 	return &QueryBuilder{
 		StringEnclosingChar:    `'`,
 		StringEscapeChar:       `\`,
-		PreparedStatementChar:  `?`,
+		ParameterChar:          `?`,
 		ReservedWordEscapeChar: `"`,
 		ResultLimitPosition:    REAR,
 		ResultLimit:            "",
@@ -169,18 +170,18 @@ func NewDelete(table string, config cfg.DatabaseInfo) *QueryBuilder {
 
 func newConfigBuilder(table string, commandType Command, config cfg.DatabaseInfo, skipnull bool) *QueryBuilder {
 	return &QueryBuilder{
-		TableName:                   table,
-		CommandType:                 commandType,
-		StringEnclosingChar:         *config.StringEnclosingChar,
-		StringEscapeChar:            *config.StringEscapeChar,
-		PreparedStatementChar:       config.ParameterPlaceholder,
-		PreparedStatementInSequence: config.ParameterInSequence,
-		ResultLimitPosition:         REAR,
-		ReservedWordEscapeChar:      *config.ReservedWordEscapeChar,
-		InterpolateTables:           *config.InterpolateTables,
-		ResultLimit:                 ``,
-		SkipNilWriteColumn:          skipnull,
-		dbinfo:                      &config,
+		TableName:              table,
+		CommandType:            commandType,
+		StringEnclosingChar:    *config.StringEnclosingChar,
+		StringEscapeChar:       *config.StringEscapeChar,
+		ParameterChar:          config.ParameterPlaceholder,
+		ParameterInSequence:    config.ParameterInSequence,
+		ResultLimitPosition:    REAR,
+		ReservedWordEscapeChar: *config.ReservedWordEscapeChar,
+		InterpolateTables:      *config.InterpolateTables,
+		ResultLimit:            ``,
+		SkipNilWriteColumn:     skipnull,
+		dbinfo:                 &config,
 	}
 }
 
@@ -393,8 +394,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				pchar += "NULL"
 			} else {
 				if v.sqlstring {
-					pchar += qb.PreparedStatementChar
-					if qb.PreparedStatementInSequence {
+					pchar += qb.ParameterChar
+					if qb.ParameterInSequence {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
@@ -453,8 +454,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				if !v.sqlstring {
 					pchar, _ = v.value.(string)
 				} else {
-					pchar = qb.PreparedStatementChar
-					if qb.PreparedStatementInSequence {
+					pchar = qb.ParameterChar
+					if qb.ParameterInSequence {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
@@ -472,31 +473,40 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	}
 
 	// build filter parameters for SELECT, UPDATE and DELETE
-	if len(qb.Filter) > 0 && (qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE) {
+	if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
 
 		cma = ""
 		var tsb strings.Builder
 
-		for _, c := range qb.Filter {
+		if len(qb.Filter) > 0 {
+			for _, c := range qb.Filter {
 
-			if !isnil(c.value) {
+				if !isnil(c.value) {
 
-				pchar = qb.PreparedStatementChar
-				if qb.PreparedStatementInSequence {
-					paramcnt++
-					pchar += strconv.Itoa(paramcnt)
+					pchar = qb.ParameterChar
+					if qb.ParameterInSequence {
+						paramcnt++
+						pchar += strconv.Itoa(paramcnt)
+					}
+					tsb.WriteString(cma + c.expression + " = " + pchar)
+				} else {
+
+					tsb.WriteString(cma + c.expression)
+					if !c.containsvalue {
+						tsb.WriteString(" IS NULL")
+					}
 				}
-				tsb.WriteString(cma + c.expression + " = " + pchar)
-			} else {
 
-				tsb.WriteString(cma + c.expression)
-				if !c.containsvalue {
-					tsb.WriteString(" IS NULL")
-				}
+				cma = " AND "
 			}
+		}
 
-			cma = " AND "
-
+		fbs, fbargs := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
+		if len(fbs) > 0 {
+			args = append(args, fbargs...)
+			for _, fb := range fbs {
+				tsb.WriteString(cma + fb)
+			}
 		}
 
 		if tsb.Len() > 0 {

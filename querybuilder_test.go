@@ -2,9 +2,12 @@ package querybuilder
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"testing"
 	"time"
+
+	fb "github.com/eaglebush/filterbuilder"
 )
 
 func TestBuildDataHelperSelect(t *testing.T) {
@@ -74,11 +77,99 @@ func TestBuildDataHelperSelectWithFilterValues(t *testing.T) {
 	t.Logf("Query: %s, Values: %v", sql, values)
 }
 
+func TestBuildDataHelperSelectWithFilterBuilderValues(t *testing.T) {
+
+	type sample struct {
+		DomainCode      *string
+		ApplicationCode *string
+		ModuleCode      *string
+		Code            *string
+		Modifier        *string
+	}
+
+	type simpleData struct {
+		FirstName *string
+		LastName  *string
+		Age       int
+	}
+
+	fn := "Zaldy"
+	ln := "Baguinon"
+
+	sd := simpleData{
+		FirstName: &fn,
+		LastName:  &ln,
+		Age:       46,
+	}
+
+	n := fb.Null(true)
+
+	fbv := fb.Filter{
+		Data: sd,
+		Eq: []fb.Pair{
+			{Column: "first_name", Value: fb.Value{Src: "FirstName"}},
+			{Column: "last_name", Value: fb.Value{Src: n, Raw: true}},
+		},
+		Ne: []fb.Pair{
+			{Column: "first_name", Value: fb.Value{Src: "FirstName"}},
+			{Column: "last_name", Value: fb.Value{Src: "LastName"}},
+		},
+		Lk: []fb.Pair{
+			{Column: "first_name", Value: fb.Value{Src: "FirstName"}},
+			{Column: "last_name", Value: fb.Value{Src: "LastName"}},
+		},
+	}
+
+	ac := `APPSHUB-AUTH`
+
+	data := sample{
+		ApplicationCode: &ac,
+		DomainCode:      new(string),
+	}
+
+	*data.DomainCode = "VDI"
+
+	qb := NewQueryBuilder("TableNotSoImportant")
+	qb.ParameterInSequence = true
+	qb.ParameterChar = "@p"
+
+	qb.AddColumn(`record_key`)
+
+	qb.AddFilter(`domain_code`, data.DomainCode)
+	qb.AddFilter(`application_code`, data.ApplicationCode)
+	qb.AddFilter(`module_code`, data.ModuleCode)
+
+	qb.AddFilter(`code`, data.Code)
+	qb.AddFilter(`modifier`, data.Modifier)
+	qb.AddFilter(`wildcard`, nil)
+
+	qb.AddFilterExp("Wacky = Yes")
+
+	qb.FilterFunc = func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) {
+		fbv.ParameterOffset = paramoffset
+		fbv.ParameterPlaceholder = paramchar
+		fbv.ParameterInSequence = paraminseq
+		s, a, err := fbv.Build()
+		if err != nil {
+			log.Printf("error: %s", err)
+		}
+		return s, a
+	}
+
+	sql, values, err := qb.Build()
+	if err != nil {
+		t.Logf("Error: %e", err)
+		return
+	}
+
+	t.Logf("Query: %s, Values: %v", sql, values)
+}
+
 func TestBuildDataHelperInsert(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
 
-	q.PreparedStatementChar = "@p"
-	q.PreparedStatementInSequence = true
+	q.ParameterChar = "@p"
+	q.ParameterInSequence = true
 	q.SkipNilWriteColumn = false //Ship if the value is null. Works only on INSERT and UPDATE
 
 	q.CommandType = INSERT
@@ -124,8 +215,8 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 
 	q.InterpolateTables = true
 
-	q.PreparedStatementChar = "$"
-	q.PreparedStatementInSequence = true
+	q.ParameterChar = "$"
+	q.ParameterInSequence = true
 	q.SkipNilWriteColumn = false
 
 	q.AddValue("UserKey", 5, nil)
@@ -162,8 +253,8 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 func TestBuildDataHelperDelete(t *testing.T) {
 	q := NewQueryBuilder("TableNotSoImportant")
 
-	q.PreparedStatementChar = "$"
-	q.PreparedStatementInSequence = true
+	q.ParameterChar = "$"
+	q.ParameterInSequence = true
 
 	q.CommandType = DELETE
 	q.AddFilterExp("CountryCode='PHL'")

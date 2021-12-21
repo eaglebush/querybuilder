@@ -1,5 +1,9 @@
 github.com/eaglebush/config v0.0.0-20211210110519-ae28f84f4951 h1:gsN/JijGkAY9PI5ZGPh0LBgZzS/5Ehoc41EgzFw/0nc=
 github.com/eaglebush/config v0.0.0-20211210110519-ae28f84f4951/go.mod h1:OUVIwe0yC2OSPtNj+W6rIUSfoDWlkC7HCQGN2UTuyzc=
+github.com/eaglebush/filterbuilder v0.0.0-20211221100526-4176a8e4d28f h1:EBXizjPUR4Z5qdYbW6PA/LuXLOImsmLQzyq3Yb/cAbQ=
+github.com/eaglebush/filterbuilder v0.0.0-20211221100526-4176a8e4d28f/go.mod h1:37Zo8nv0p/BqQYVCNfbGE4e5xjZYGLk/9CdOArWybZk=
+github.com/eaglebush/filterbuilder v0.0.0-20211221104833-4b893cc74437 h1:OWKxl18OFnWGbE5d59NNZKvgJlNEI8F6NaftTxAFFi4=
+github.com/eaglebush/filterbuilder v0.0.0-20211221104833-4b893cc74437/go.mod h1:37Zo8nv0p/BqQYVCNfbGE4e5xjZYGLk/9CdOArWybZk=
 github.com/eaglebush/stdutil v0.0.0-20211203084811-ba0562a409d8 h1:WbPv6MQNrUUZVwe8WEXUPBpTP4n+YWEiHK6MqVuSz50=
 github.com/eaglebush/stdutil v0.0.0-20211203084811-ba0562a409d8/go.mod h1:fQ+qUpgECbADgsFpoMUEj9pEAtvYIVyAKWC5J1H4o28=
 github.com/gbrlsnchs/jwt/v3 v3.0.1 h1:lbUmgAKpxnClrKloyIwpxm4OuWeDl5wLk52G91ODPw4=
