@@ -507,6 +507,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				args = append(args, fbargs...)
 				for _, fb := range fbs {
 					tsb.WriteString(cma + fb)
+					cma = " AND "
 				}
 			}
 		}
