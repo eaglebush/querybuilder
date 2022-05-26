@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20220521012816-43c721c7d679
 	github.com/eaglebush/filterbuilder v0.0.0-20211221104833-4b893cc74437 // indirect
 	github.com/eaglebush/stdutil v0.0.0-20211203084811-ba0562a409d8 // indirect
 	github.com/gbrlsnchs/jwt/v3 v3.0.1 // indirect

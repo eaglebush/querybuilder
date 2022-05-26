@@ -1,3 +1,5 @@
+github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20220521012816-43c721c7d679 h1:TTDmqKEel8svy7t+qyqghdCRx4gOAqm2PoRyKsiJIjc=
+github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20220521012816-43c721c7d679/go.mod h1:3Aondtyzhmlvs3ErCY8C1wjPuoDX7qNyQRYo45LD+So=
 github.com/eaglebush/config v0.0.0-20211210110519-ae28f84f4951 h1:gsN/JijGkAY9PI5ZGPh0LBgZzS/5Ehoc41EgzFw/0nc=
 github.com/eaglebush/config v0.0.0-20211210110519-ae28f84f4951/go.mod h1:OUVIwe0yC2OSPtNj+W6rIUSfoDWlkC7HCQGN2UTuyzc=
 github.com/eaglebush/filterbuilder v0.0.0-20211221100526-4176a8e4d28f h1:EBXizjPUR4Z5qdYbW6PA/LuXLOImsmLQzyq3Yb/cAbQ=

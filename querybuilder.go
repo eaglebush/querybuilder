@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	dhl "github.com/NarsilWorks-Inc/datahelperlite"
 	cfg "github.com/eaglebush/config"
 	ssd "github.com/shopspring/decimal"
 )
@@ -729,6 +730,8 @@ func getv(input interface{}) (ret interface{}) {
 		ret = *t
 	case *ssd.Decimal:
 		ret = *t
+	case dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
+		ret = t
 	}
 
 	return
