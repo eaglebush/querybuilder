@@ -1,6 +1,6 @@
 module github.com/eaglebush/querybuilder
 
-go 1.17
+go 1.18
 
 require (
 	github.com/eaglebush/config v0.0.0-20211210110519-ae28f84f4951
