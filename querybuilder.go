@@ -62,9 +62,9 @@ type ValueOption struct {
 	MatchToNull interface{} // When the primary value matches with this value, the resulting value will be set to NULL
 }
 
-type queryColumn struct {
-	name   string // name of the column
-	length int    // length of the column
+type QueryColumn struct {
+	Name   string // name of the column
+	Length int    // length of the column
 }
 
 type queryValue struct {
@@ -92,7 +92,7 @@ type querySort struct {
 type QueryBuilder struct {
 	TableName              string                                                                             // Table or view name of the query
 	CommandType            Command                                                                            // Command type
-	Columns                []queryColumn                                                                      // Columns of the query
+	Columns                []QueryColumn                                                                      // Columns of the query
 	Values                 []queryValue                                                                       // Values of the columns
 	Order                  []querySort                                                                        // Order by columns
 	Group                  []string                                                                           // Group by columns
@@ -235,10 +235,8 @@ func (qb *QueryBuilder) SetColumnValue(Name string, Value interface{}) *QueryBui
 		return qb
 	}
 
-	c := strings.ToLower(Name)
 	for i, v := range qb.Values {
-
-		if c != strings.ToLower(v.column) {
+		if strings.EqualFold(Name, v.column) {
 			continue
 		}
 
@@ -596,28 +594,24 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 func (qb *QueryBuilder) addColumn(name string, length int) int {
 
-	c := strings.ToLower(name)
 	for i, v := range qb.Columns {
-
-		if c != strings.ToLower(v.name) {
+		if !strings.EqualFold(name, v.Name) {
 			continue
 		}
 
 		return i
 	}
 
-	qb.Columns = append(qb.Columns, queryColumn{name: name, length: length})
+	qb.Columns = append(qb.Columns, QueryColumn{Name: name, Length: length})
 
 	return len(qb.Columns) - 1
 }
 
 func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue interface{}, matchToNull interface{}) *QueryBuilder {
 
-	c := strings.ToLower(qb.Columns[index].name)
-
 	for i, v := range qb.Values {
 
-		if c != strings.ToLower(v.column) {
+		if !strings.EqualFold(qb.Columns[index].Name, v.column) {
 			continue
 		}
 
@@ -630,7 +624,7 @@ func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString b
 	}
 
 	qb.Values = append(qb.Values, queryValue{
-		column:      qb.Columns[index].name,
+		column:      qb.Columns[index].Name,
 		sqlstring:   sqlString,
 		defvalue:    defValue,
 		matchtonull: matchToNull,
