@@ -336,7 +336,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	case UPDATE:
 		sb.WriteString("UPDATE " + tbn + " SET ")
 	case DELETE:
-		sb.WriteString("DELETE FROM " + tbn)
+		sb.WriteString("DELETE \rFROM " + tbn)
 	}
 
 	// build columns (with placeholder for update )
@@ -429,7 +429,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 	// Append table name for SELECT
 	if qb.CommandType == SELECT {
-		sb.WriteString(" FROM " + tbn)
+		sb.WriteString(" \rFROM " + tbn)
 	}
 
 	// build value place holder for insert
@@ -496,23 +496,22 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 					}
 				}
 
-				cma = " AND "
+				cma = "\r\t\t AND "
 			}
 		}
 
 		if qb.FilterFunc != nil {
-			fbs, fbargs := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
+			fbs, _ := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
 			if len(fbs) > 0 {
-				args = append(args, fbargs...)
 				for _, fb := range fbs {
 					tsb.WriteString(cma + fb)
-					cma = " AND "
+					cma = "\r\t\t AND "
 				}
 			}
 		}
 
 		if tsb.Len() > 0 {
-			sb.WriteString(" WHERE " + tsb.String())
+			sb.WriteString("\r\t WHERE " + tsb.String())
 		}
 	}
 
@@ -565,6 +564,13 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	for _, v := range qb.Filter {
 		if (qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE) && !isnil(v.value) {
 			args = append(args, v.value)
+		}
+	}
+
+	if qb.FilterFunc != nil {
+		fbs, fbargs := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
+		if len(fbs) > 0 {
+			args = append(args, fbargs...)
 		}
 	}
 
