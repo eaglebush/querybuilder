@@ -20,13 +20,8 @@ import (
 	ssd "github.com/shopspring/decimal"
 )
 
-// Command - the type of command to perform
 type Command int
-
-// Sort - sort type
 type Sort int
-
-// Limit is the position of the row limiting command
 type Limit int
 
 // CommandType enum
@@ -88,46 +83,42 @@ type querySort struct {
 	order  Sort
 }
 
-// QueryBuilder - a class to build SQL queries
+// QueryBuilder is a structure to build SQL queries
 type QueryBuilder struct {
-	TableName              string                                                                             // Table or view name of the query
-	CommandType            Command                                                                            // Command type
-	Columns                []QueryColumn                                                                      // Columns of the query
-	Values                 []queryValue                                                                       // Values of the columns
-	Order                  []querySort                                                                        // Order by columns
-	Group                  []string                                                                           // Group by columns
-	Filter                 []queryFilter                                                                      // Query filter
-	StringEnclosingChar    string                                                                             // Gets or sets the character that encloses a string in the query
-	StringEscapeChar       string                                                                             // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
-	ReservedWordEscapeChar string                                                                             // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
-	ParameterChar          string                                                                             // Gets or sets the character placeholder for prepared statements
-	ParameterInSequence    bool                                                                               // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
-	SkipNilWriteColumn     bool                                                                               // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	ResultLimitPosition    Limit                                                                              // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
-	ResultLimit            string                                                                             // The value of the row limit
-	InterpolateTables      bool                                                                               // When true, all table name with {} around it will be prepended with schema
-	Schema                 string                                                                             // When the database info is not applied, this value will be used
-	ParameterOffset        int                                                                                // The parameter sequence offset
-	FilterFunc             func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
+	TableName              string                                                              // Table or view name of the query
+	CommandType            Command                                                             // Command type
+	Columns                []QueryColumn                                                       // Columns of the query
+	Values                 []queryValue                                                        // Values of the columns
+	Order                  []querySort                                                         // Order by columns
+	Group                  []string                                                            // Group by columns
+	Filter                 []queryFilter                                                       // Query filter
+	StringEnclosingChar    string                                                              // Gets or sets the character that encloses a string in the query
+	StringEscapeChar       string                                                              // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
+	ReservedWordEscapeChar string                                                              // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
+	ParameterChar          string                                                              // Gets or sets the character placeholder for prepared statements
+	ParameterInSequence    bool                                                                // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
+	SkipNilWriteColumn     bool                                                                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	ResultLimitPosition    Limit                                                               // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
+	ResultLimit            string                                                              // The value of the row limit
+	InterpolateTables      bool                                                                // When true, all table name with {} around it will be prepended with schema
+	Schema                 string                                                              // When the database info is not applied, this value will be used
+	ParameterOffset        int                                                                 // The parameter sequence offset
+	FilterFunc             func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
 	dbinfo                 *cfg.DatabaseInfo
 }
 
 // NewQueryBuilder - builds a new QueryBuilder object
 func NewQueryBuilder(table string) *QueryBuilder {
-
 	qb := NewQueryBuilderBare()
 	qb.TableName = table
-
 	return qb
 }
 
 // NewQueryBuilderWithCommandType - builds a new QueryBuilder object with table name and command type
 func NewQueryBuilderWithCommandType(table string, commandType Command) *QueryBuilder {
-
 	qb := NewQueryBuilderBare()
 	qb.TableName = table
 	qb.CommandType = commandType
-
 	return qb
 }
 
@@ -188,110 +179,88 @@ func newConfigBuilder(table string, commandType Command, config cfg.DatabaseInfo
 
 // AddColumn - adds a column
 func (qb *QueryBuilder) AddColumn(Name string) *QueryBuilder {
-
 	if qb.CommandType == DELETE {
 		return qb
 	}
-
 	return qb.setColumnValue(qb.addColumn(Name, 255), nil, true, nil, nil)
 }
 
 // AddColumnFixed - adds a column with specified length
 func (qb *QueryBuilder) AddColumnFixed(Name string, Length int) *QueryBuilder {
-
 	if qb.CommandType == DELETE {
 		return qb
 	}
-
 	return qb.setColumnValue(qb.addColumn(Name, Length), nil, true, nil, nil)
 }
 
 // AddValue adds a value enclosed with string quotes when the CommandType is INSERT or UPDATE upon building
 func (qb *QueryBuilder) AddValue(Name string, Value interface{}, vo *ValueOption) *QueryBuilder {
-
 	var (
 		sqlstr      bool
-		defval      interface{}
-		matchtonull interface{}
+		defVal      interface{}
+		matchToNull interface{}
 	)
-
 	sqlstr = true
-	defval = nil
-	matchtonull = nil
-
+	defVal = nil
+	matchToNull = nil
 	if vo != nil {
 		sqlstr = vo.SQLString
-		defval = vo.Default
-		matchtonull = vo.MatchToNull
+		defVal = vo.Default
+		matchToNull = vo.MatchToNull
 	}
-
-	return qb.setColumnValue(qb.addColumn(Name, 8000), Value, sqlstr, defval, matchtonull)
+	return qb.setColumnValue(qb.addColumn(Name, 8000), Value, sqlstr, defVal, matchToNull)
 }
 
 // SetColumnValue - sets the column value
 func (qb *QueryBuilder) SetColumnValue(Name string, Value interface{}) *QueryBuilder {
-
 	if qb.CommandType == DELETE {
 		return qb
 	}
-
 	for i, v := range qb.Values {
 		if strings.EqualFold(Name, v.column) {
 			continue
 		}
-
 		return qb.setColumnValue(i, Value, true, nil, nil)
 	}
-
 	return qb
 }
 
 // Escape a string value to prevent unescaped errors
 func (qb *QueryBuilder) Escape(Value string) string {
-
 	if len(Value) > 0 {
 		return strings.ReplaceAll(Value, qb.StringEnclosingChar, qb.StringEscapeChar+qb.StringEnclosingChar)
 	}
-
 	return Value
 }
 
 // AddFilter adds a filter with value.
 func (qb *QueryBuilder) AddFilter(Column string, Value interface{}) *QueryBuilder {
-
 	qb.Filter = append(qb.Filter, queryFilter{
 		expression: Column,
 		value:      Value,
 	})
-
 	return qb
 }
 
 // AddFilterExp adds a specific filter expression that could not be done with AddFilter
 func (qb *QueryBuilder) AddFilterExp(Expression string) *QueryBuilder {
-
 	qb.Filter = append(qb.Filter, queryFilter{
 		expression:    Expression,
 		value:         nil,
 		containsvalue: true,
 	})
-
 	return qb
 }
 
 // AddOrder - adds a column to order by into the QueryBuilder for both BuildString() and BuildDataHelper() function.
 func (qb *QueryBuilder) AddOrder(Column string, Order Sort) *QueryBuilder {
-
 	qb.Order = append(qb.Order, querySort{column: Column, order: Order})
-
 	return qb
 }
 
 // AddGroup - adds a group by clause
 func (qb *QueryBuilder) AddGroup(Group string) *QueryBuilder {
-
 	qb.Group = append(qb.Group, Group)
-
 	return qb
 }
 
@@ -346,49 +315,39 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	columncnt := 0
 
 	for idx, v := range qb.Values {
-
 		qb.Values[idx].forcenull = false
-		isnl := isnil(v.value)
-
+		isnl := isNil(v.value)
 		// If value is nil, get defvalue
-		if isnl && !isnil(v.defvalue) {
+		if isnl && !isNil(v.defvalue) {
 			v.value = v.defvalue
 			isnl = false
 		}
-
 		// If matchtonull is true, column value is nil
-		if !isnl && !isnil(v.matchtonull) && v.matchtonull == v.value {
+		if !isnl && !isNil(v.matchtonull) && v.matchtonull == v.value {
 			isnl = true
 			qb.Values[idx].forcenull = true
 			qb.Values[idx].sqlstring = true
 		}
-
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
 		qb.Values[idx].skip = qb.SkipNilWriteColumn && isnl
-
 		switch qb.CommandType {
 		case SELECT:
 			sb.WriteString(cma + v.column)
 			cma = ", "
 			columncnt++
 		case INSERT:
-
 			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
 				break
 			}
-
 			sb.WriteString(cma + v.column)
 			cma = ", "
 			columncnt++
 		case UPDATE:
-
 			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
 				break
 			}
-
 			sb.WriteString(cma + v.column)
 			pchar = " = "
-
 			if isnl {
 				pchar += "NULL"
 			} else {
@@ -417,10 +376,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 					case float64:
 						pchar += strconv.FormatFloat(t, 'E', -1, 64)
 					}
-
 				}
 			}
-
 			sb.WriteString(pchar)
 			cma = ", "
 			columncnt++
@@ -434,22 +391,16 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 	// build value place holder for insert
 	if qb.CommandType == INSERT {
-
 		cma = ""
 		pchar = ""
 		inscnt := 0
 		q := make([]string, columncnt)
-
 		for _, v := range qb.Values {
-
 			if v.skip && !v.forcenull {
 				continue
 			}
-
 			pchar = "NULL"
-
-			if !isnil(v.value) && !v.forcenull {
-
+			if !isNil(v.value) && !v.forcenull {
 				if !v.sqlstring {
 					pchar, _ = v.value.(string)
 				} else {
@@ -460,46 +411,33 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 					}
 				}
 			}
-
 			q[inscnt] = cma + pchar
-
 			cma = ","
 			inscnt++
-
 		}
-
 		sb.WriteString(") VALUES (" + strings.Join(q, "") + ")")
 	}
 
 	// build filter parameters for SELECT, UPDATE and DELETE
 	if qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE {
-
 		cma = ""
 		var tsb strings.Builder
-
-		if len(qb.Filter) > 0 {
-			for _, c := range qb.Filter {
-
-				if !isnil(c.value) {
-
-					pchar = qb.ParameterChar
-					if qb.ParameterInSequence {
-						paramcnt++
-						pchar += strconv.Itoa(paramcnt)
-					}
-					tsb.WriteString(cma + c.expression + " = " + pchar)
-				} else {
-
-					tsb.WriteString(cma + c.expression)
-					if !c.containsvalue {
-						tsb.WriteString(" IS NULL")
-					}
+		for _, c := range qb.Filter {
+			if !isNil(c.value) {
+				pchar = qb.ParameterChar
+				if qb.ParameterInSequence {
+					paramcnt++
+					pchar += strconv.Itoa(paramcnt)
 				}
-
-				cma = "\r\t\t AND "
+				tsb.WriteString(cma + c.expression + " = " + pchar)
+			} else {
+				tsb.WriteString(cma + c.expression)
+				if !c.containsvalue {
+					tsb.WriteString(" IS NULL")
+				}
 			}
+			cma = "\r\t\t AND "
 		}
-
 		if qb.FilterFunc != nil {
 			fbs, _ := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
 			if len(fbs) > 0 {
@@ -509,7 +447,6 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				}
 			}
 		}
-
 		if tsb.Len() > 0 {
 			sb.WriteString("\r\t WHERE " + tsb.String())
 		}
@@ -517,19 +454,15 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 	// build order bys
 	if len(qb.Order) > 0 {
-
 		sb.WriteString(" ORDER BY ")
 		cma = ""
-
 		for _, v := range qb.Order {
-
 			sb.WriteString(cma + v.column)
 			if v.order == ASC {
 				sb.WriteString(" ASC")
 			} else {
 				sb.WriteString(" DESC")
 			}
-
 			cma = ", "
 		}
 	}
@@ -547,22 +480,19 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 	// build values
 	for _, v := range qb.Values {
-
 		if v.skip ||
 			!v.sqlstring ||
 			!(qb.CommandType == INSERT || qb.CommandType == UPDATE) ||
-			isnil(v.value) ||
+			isNil(v.value) ||
 			v.forcenull {
-
 			continue
 		}
-
 		args = append(args, v.value)
 	}
 
 	// build filter values
 	for _, v := range qb.Filter {
-		if (qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE) && !isnil(v.value) {
+		if (qb.CommandType == SELECT || qb.CommandType == UPDATE || qb.CommandType == DELETE) && !isNil(v.value) {
 			args = append(args, v.value)
 		}
 	}
@@ -578,57 +508,44 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 	if qb.InterpolateTables {
 		sch := ``
-
 		// if there is a dbinfo, get the schema
 		if qb.dbinfo != nil {
 			sch = qb.dbinfo.Schema
 		}
-
 		// If there is a schema defined, it will prevail
 		if qb.Schema != "" {
 			sch = qb.Schema
 		}
-
 		// replace table names marked with {table}
 		query = InterpolateTable(query, sch)
 	}
 
 	qb.ParameterOffset = paramcnt
-
 	return
 }
 
 func (qb *QueryBuilder) addColumn(name string, length int) int {
-
 	for i, v := range qb.Columns {
 		if !strings.EqualFold(name, v.Name) {
 			continue
 		}
-
 		return i
 	}
-
 	qb.Columns = append(qb.Columns, QueryColumn{Name: name, Length: length})
-
 	return len(qb.Columns) - 1
 }
 
 func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue interface{}, matchToNull interface{}) *QueryBuilder {
-
 	for i, v := range qb.Values {
-
 		if !strings.EqualFold(qb.Columns[index].Name, v.column) {
 			continue
 		}
-
 		qb.Values[i].sqlstring = sqlString
 		qb.Values[i].defvalue = defValue
 		qb.Values[i].matchtonull = matchToNull
 		qb.Values[i].value = value
-
 		return qb
 	}
-
 	qb.Values = append(qb.Values, queryValue{
 		column:      qb.Columns[index].Name,
 		sqlstring:   sqlString,
@@ -636,50 +553,34 @@ func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString b
 		matchtonull: matchToNull,
 		value:       value,
 	})
-
 	return qb
 }
 
-func isnil(value interface{}) bool {
-
-	isnil := false
-
-	// Check if the value is nil
-	isnil = value == nil
-
-	// Check if the type of the value isn't nil
-	if !isnil {
-		if t := reflect.TypeOf(value); t == nil {
-			isnil = true
+func isNil(value interface{}) bool {
+	if value == nil {
+		return true
+	}
+	if t := reflect.TypeOf(value); t == nil {
+		return true
+	}
+	if v := reflect.ValueOf(value); v.IsZero() {
+		if k := v.Kind(); k == reflect.Map ||
+			k == reflect.Func ||
+			k == reflect.Ptr ||
+			k == reflect.Slice ||
+			k == reflect.Interface {
+			return v.IsNil()
 		}
 	}
-
-	// Check if the underlying value is nil
-	if !isnil {
-		if tv := reflect.ValueOf(value); tv.IsZero() {
-			if k := tv.Kind(); k == reflect.Map ||
-				k == reflect.Func ||
-				k == reflect.Ptr ||
-				k == reflect.Slice ||
-				k == reflect.Interface {
-
-				isnil = tv.IsNil()
-			}
-		}
-	}
-
-	return isnil
+	return false
 }
 
 // converts the value to a basic interface as nil or non-nil
 func realvalue(value interface{}) interface{} {
-
-	if isnil(value) {
+	if isNil(value) {
 		return nil
 	}
-
 	var ret interface{}
-
 	switch t := value.(type) {
 	case *interface{}:
 		v2 := *t
@@ -693,12 +594,10 @@ func realvalue(value interface{}) interface{} {
 	default:
 		ret = getv(t)
 	}
-
 	return ret
 }
 
 func getv(input interface{}) (ret interface{}) {
-
 	switch t := input.(type) {
 	case string, int, int8, int16, int32,
 		int64, float32, float64, time.Time, bool,
@@ -733,31 +632,25 @@ func getv(input interface{}) (ret interface{}) {
 	case dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
 		ret = t
 	}
-
 	return
 }
 
 // ParseReserveWordsChars always returns two-element array of opening and closing escape chars
 func ParseReserveWordsChars(ec string) []string {
-
 	if len(ec) == 1 {
 		return []string{ec, ec}
 	}
-
 	if len(ec) >= 2 {
 		return []string{ec[0:1], ec[1:2]}
 	}
-
 	return []string{`"`, `"`} // default is double quotes
 }
 
 // InterpolateTable - interpolate the tables specified with curly braces {} with a schema
 func InterpolateTable(sql string, schema string) string {
-
 	if schema != "" {
 		schema = schema + `.`
 	}
-
 	re := regexp.MustCompile(`\{([a-zA-Z0-9\[\]\"\_\-]*)\}`)
 	return re.ReplaceAllString(sql, schema+`$1`)
 }
