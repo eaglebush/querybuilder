@@ -2,9 +2,9 @@ github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20230814052929-ae926ca1cec5 h1:
 github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20230814052929-ae926ca1cec5/go.mod h1:Cx/ktsv9PODpIaVB9P616mHrOoTGK+cdarafV7fL+iI=
 github.com/eaglebush/config v0.0.0-20231018091315-109555fee9e6 h1:xpaFw0k+QzOApdwHGLr+WGI1QrTTjI28cwXC5uEaQJ0=
 github.com/eaglebush/config v0.0.0-20231018091315-109555fee9e6/go.mod h1:UkGigEfx+L8E6iSiy130RcUrBl3SV9DPbisdV212wf8=
-github.com/eaglebush/filterbuilder v0.0.0-20230211015838-d3e30baf8fa2 h1:IIUkR1noC3Fk6PTeWJjk5aKPOBfKZwSMWPvOpL+Bqpw=
-github.com/eaglebush/filterbuilder v0.0.0-20230211015838-d3e30baf8fa2/go.mod h1:CFsCDo4tZIJ6qiWdR0ZQoVve9ilHdHgX4qBqQnok5H0=
+github.com/eaglebush/filterbuilder v0.0.0-20231027023719-d3c902796d4e h1:6kHwI2prvUQJXkFOAdiD9H5R5eT4qh6P52DC85E6mHM=
+github.com/eaglebush/filterbuilder v0.0.0-20231027023719-d3c902796d4e/go.mod h1:PXyE7gfMkYtaqnF+B4WT38dCcojrfvHuByKJHd7gCXc=
 github.com/shopspring/decimal v1.3.1 h1:2Usl1nmF/WZucqkFZhnfFYxxxu8LG21F6nPQBE5gKV8=
 github.com/shopspring/decimal v1.3.1/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
-golang.org/x/exp v0.0.0-20230210204819-062eb4c674ab h1:628ME69lBm9C6JY2wXhAph/yjN3jezx1z7BIDLUwxjo=
-golang.org/x/exp v0.0.0-20230210204819-062eb4c674ab/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
+golang.org/x/exp v0.0.0-20231006140011-7918f672742d h1:jtJma62tbqLibJ5sFQz8bKtEM8rJBtfilJ2qTU199MI=
+golang.org/x/exp v0.0.0-20231006140011-7918f672742d/go.mod h1:ldy0pHrwJyGW56pPQzzkH36rKxoZW1tw7ZJpeKx+hdo=
