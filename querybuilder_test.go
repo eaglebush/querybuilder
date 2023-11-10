@@ -157,9 +157,11 @@ func TestBuildDataHelperSelectWithFilterBuilderValues(t *testing.T) {
 	// 	return s, a
 	// }
 
-	qb.FilterFunc = func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) {
-		return fbv.BuildFunc(paramoffset, paramchar, paraminseq)
-	}
+	// qb.FilterFunc = func(paramoffset int, paramchar string, paraminseq bool) ([]string, []interface{}) {
+	// 	return fbv.BuildFunc(paramoffset, paramchar, paraminseq)
+	// }
+
+	qb.FilterFunc = fbv.BuildFunc
 
 	sql, values, err := qb.Build()
 	if err != nil {
