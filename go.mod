@@ -3,7 +3,7 @@ module github.com/eaglebush/querybuilder
 go 1.19
 
 require (
-	github.com/eaglebush/config v0.0.0-20231018091315-109555fee9e6
+	github.com/eaglebush/config v0.0.0-20240130015749-bac1ffbdfd14
 	github.com/shopspring/decimal v1.3.1
 )
 
