@@ -153,6 +153,14 @@ func WithTableName(name string) Option {
 	}
 }
 
+// WithSchema sets the schema of a query builder
+func WithSchema(schema string) Option {
+	return func(q *QueryBuilder) error {
+		q.Schema = schema
+		return nil
+	}
+}
+
 // WithCommand sets the command of a query builder
 func WithCommand(ct Command) Option {
 	return func(q *QueryBuilder) error {
