@@ -10,6 +10,6 @@ require (
 require golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 
 require (
-	github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20240918064202-04d4c1cd838c
+	github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20241112065539-bdd3b0bfc23e
 	github.com/eaglebush/filterbuilder v0.0.0-20231027023719-d3c902796d4e
 )

@@ -535,7 +535,7 @@ func (qb *QueryBuilder) addColumn(name string, length int) int {
 	return len(qb.Columns) - 1
 }
 
-func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue interface{}, matchToNull interface{}) *QueryBuilder {
+func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue, matchToNull interface{}) *QueryBuilder {
 	for i, v := range qb.Values {
 		if !strings.EqualFold(qb.Columns[index].Name, v.column) {
 			continue
