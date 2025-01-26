@@ -110,6 +110,8 @@ type QueryBuilder struct {
 	ParameterOffset        int                                                                 // The parameter sequence offset
 	FilterFunc             func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
 	dbInfo                 *cfg.DatabaseInfo
+	referenceMode          bool
+	referenceModePrefix    string
 }
 
 // New builds a new QueryBuilder
@@ -135,6 +137,8 @@ func New(options ...Option) *QueryBuilder {
 		ResultLimit:            "",
 		InterpolateTables:      true,
 		SkipNilWriteColumn:     false,
+		referenceMode:          false,
+		referenceModePrefix:    `ref`,
 	}
 	for _, o := range options {
 		if o == nil {
@@ -186,6 +190,34 @@ func WithConfig(cfg *cfg.DatabaseInfo) Option {
 		}
 		if cfg.InterpolateTables != nil {
 			q.InterpolateTables = *cfg.InterpolateTables
+		}
+		return nil
+	}
+}
+
+// ReferenceMode generates query that adds a `ref` prefix to table names
+func ReferenceMode(indeed bool) Option {
+	return func(q *QueryBuilder) error {
+		q.referenceMode = indeed
+		return nil
+	}
+}
+
+// ReferenceModePrefix changes prefix to table names in ReferenceMode
+func ReferenceModePrefix(prefix string) Option {
+	return func(q *QueryBuilder) error {
+		if prefix != "" {
+			q.referenceModePrefix = prefix
+		}
+		return nil
+	}
+}
+
+// Schema sets schema at initialization time
+func Schema(schema string) Option {
+	return func(q *QueryBuilder) error {
+		if schema != "" {
+			q.Schema = schema
 		}
 		return nil
 	}
@@ -562,6 +594,12 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	query = sb.String()
 	if qb.InterpolateTables {
 		sch := ``
+		if qb.referenceMode {
+			sch = qb.referenceModePrefix
+			if !strings.HasSuffix(sch, "_") {
+				sch += "_"
+			}
+		}
 		// if there is a dbinfo, get the schema
 		if qb.dbInfo != nil {
 			sch = qb.dbInfo.Schema
