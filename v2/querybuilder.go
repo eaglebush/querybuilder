@@ -206,9 +206,10 @@ func ReferenceMode(indeed bool) Option {
 // ReferenceModePrefix changes prefix to table names in ReferenceMode
 func ReferenceModePrefix(prefix string) Option {
 	return func(q *QueryBuilder) error {
-		if prefix != "" {
-			q.referenceModePrefix = prefix
+		if prefix == "" {
+			return nil
 		}
+		q.referenceModePrefix = prefix
 		return nil
 	}
 }
@@ -216,9 +217,7 @@ func ReferenceModePrefix(prefix string) Option {
 // Schema sets schema at initialization time
 func Schema(schema string) Option {
 	return func(q *QueryBuilder) error {
-		if schema != "" {
-			q.Schema = schema
-		}
+		q.Schema = schema
 		return nil
 	}
 }
