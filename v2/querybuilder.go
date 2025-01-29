@@ -148,8 +148,8 @@ func New(options ...Option) *QueryBuilder {
 }
 
 // Spawn creates a copy of a builder and resets the non-constant values
-func Spawn(builder QueryBuilder) *QueryBuilder {
-	return &QueryBuilder{
+func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
+	n := QueryBuilder{
 		dbEngineConstants:   builder.dbEngineConstants,
 		referenceMode:       builder.referenceMode,
 		referenceModePrefix: builder.referenceModePrefix,
@@ -158,6 +158,13 @@ func Spawn(builder QueryBuilder) *QueryBuilder {
 		schema:              builder.schema,
 		ResultLimit:         "",
 	}
+	for _, o := range options {
+		if o == nil {
+			continue
+		}
+		o(&n)
+	}
+	return &n
 }
 
 // InitConstants return defaults of database engine constants
@@ -292,6 +299,32 @@ func NewUpdate(table string, opts ...Option) *QueryBuilder {
 func NewDelete(table string, opts ...Option) *QueryBuilder {
 	opts = append(opts, Source(table), Command(DELETE))
 	return New(opts...)
+}
+
+// SpawnSelect creates a new builder out of factory and initializes for query
+//
+// dataObject can be a table, view or a joined query name
+func SpawnSelect(builder *QueryBuilder, dataObject string, opts ...Option) *QueryBuilder {
+	opts = append(opts, Source(dataObject), Command(SELECT))
+	return Spawn(*builder, opts...)
+}
+
+// SpawnInsert creates a new builder out of factory and initializes for insert command
+func SpawnInsert(builder *QueryBuilder, table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, Source(table), Command(INSERT))
+	return Spawn(*builder, opts...)
+}
+
+// SpawnUpdate creates a new builder out of factory and initializes for update command
+func SpawnUpdate(builder *QueryBuilder, table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, Source(table), Command(UPDATE))
+	return Spawn(*builder, opts...)
+}
+
+// SpawnDelete creates a new builder out of factory and initializes for delete command
+func SpawnDelete(builder *QueryBuilder, table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, Source(table), Command(DELETE))
+	return Spawn(*builder, opts...)
 }
 
 // AddColumn adds a column to the builder
