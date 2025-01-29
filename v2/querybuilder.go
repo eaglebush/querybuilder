@@ -109,7 +109,6 @@ type QueryBuilder struct {
 	Schema                 string                                                              // When the database info is not applied, this value will be used
 	ParameterOffset        int                                                                 // The parameter sequence offset
 	FilterFunc             func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
-	dbInfo                 *cfg.DatabaseInfo
 	referenceMode          bool
 	referenceModePrefix    string
 }
@@ -136,7 +135,7 @@ func New(options ...Option) *QueryBuilder {
 		ResultLimitPosition:    REAR,
 		ResultLimit:            "",
 		InterpolateTables:      true,
-		SkipNilWriteColumn:     false,
+		SkipNilWriteColumn:     true,
 		referenceMode:          false,
 		referenceModePrefix:    `ref`,
 	}
@@ -176,7 +175,6 @@ func WithCommand(ct Command) Option {
 // WithCommand sets the command of a query builder
 func WithConfig(cfg *cfg.DatabaseInfo) Option {
 	return func(q *QueryBuilder) error {
-		q.dbInfo = cfg
 		q.ParameterChar = cfg.ParameterPlaceholder
 		q.ParameterInSequence = cfg.ParameterInSequence
 		if cfg.StringEnclosingChar != nil {
@@ -214,14 +212,6 @@ func ReferenceModePrefix(prefix string) Option {
 	}
 }
 
-// Schema sets schema at initialization time
-func Schema(schema string) Option {
-	return func(q *QueryBuilder) error {
-		q.Schema = schema
-		return nil
-	}
-}
-
 // SkipNilWrite sets the condition to skip nil columns when writing to table
 func SkipNilWrite(skip bool) Option {
 	return func(q *QueryBuilder) error {
@@ -255,23 +245,27 @@ func MatchToNull(match interface{}) ValueOption {
 }
 
 // NewSelect is a shortcut builder for Select queries
-func NewSelect(table string, config cfg.DatabaseInfo) *QueryBuilder {
-	return New(WithTableName(table), WithCommand(SELECT), WithConfig(&config))
+func NewSelect(table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, WithTableName(table), WithCommand(SELECT))
+	return New(opts...)
 }
 
 // NewInsert is a shortcut builder for Insert queries
-func NewInsert(table string, config cfg.DatabaseInfo) *QueryBuilder {
-	return New(WithTableName(table), WithCommand(INSERT), WithConfig(&config))
+func NewInsert(table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, WithTableName(table), WithCommand(INSERT))
+	return New(opts...)
 }
 
 // NewUpdate is a shortcut builder for Update queries
-func NewUpdate(table string, config cfg.DatabaseInfo, skipnull bool) *QueryBuilder {
-	return New(WithTableName(table), WithCommand(UPDATE), WithConfig(&config), SkipNilWrite(true))
+func NewUpdate(table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, WithTableName(table), WithCommand(UPDATE))
+	return New(opts...)
 }
 
 // NewDelete is a shortcut builder for Delete queries
-func NewDelete(table string, config cfg.DatabaseInfo) *QueryBuilder {
-	return New(WithTableName(table), WithCommand(DELETE), WithConfig(&config))
+func NewDelete(table string, opts ...Option) *QueryBuilder {
+	opts = append(opts, WithTableName(table), WithCommand(DELETE))
+	return New(opts...)
 }
 
 // AddColumn adds a column to the builder
@@ -598,10 +592,6 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			if !strings.HasSuffix(sch, "_") {
 				sch += "_"
 			}
-		}
-		// if there is a dbinfo, get the schema
-		if qb.dbInfo != nil {
-			sch = qb.dbInfo.Schema
 		}
 		// If there is a schema defined, it will prevail
 		if qb.Schema != "" {
