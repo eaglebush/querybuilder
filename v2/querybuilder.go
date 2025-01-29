@@ -174,6 +174,7 @@ func InitConstants() EngineConstants {
 		StringEscapeChar:       `\`,
 		ParameterChar:          `?`,
 		ReservedWordEscapeChar: `"`,
+		ParameterInSequence:    false,
 		ResultLimitPosition:    REAR,
 	}
 }
