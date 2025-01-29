@@ -175,6 +175,7 @@ func WithCommand(ct Command) Option {
 // WithCommand sets the command of a query builder
 func WithConfig(cfg *cfg.DatabaseInfo) Option {
 	return func(q *QueryBuilder) error {
+		q.Schema = cfg.Schema
 		q.ParameterChar = cfg.ParameterPlaceholder
 		q.ParameterInSequence = cfg.ParameterInSequence
 		if cfg.StringEnclosingChar != nil {
