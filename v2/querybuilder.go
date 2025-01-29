@@ -17,20 +17,19 @@ import (
 	"time"
 
 	dhl "github.com/NarsilWorks-Inc/datahelperlite"
-	cfg "github.com/eaglebush/config"
 	ssd "github.com/shopspring/decimal"
 )
 
-type Command uint8
+type CommandType uint8
 type Sort uint8
 type Limit uint8
 
 // CommandType enum
 const (
-	SELECT Command = 0 // Select record type
-	INSERT Command = 1 // Insert record type
-	UPDATE Command = 2 // Update record type
-	DELETE Command = 3 // Delete record type
+	SELECT CommandType = 0 // Select record type
+	INSERT CommandType = 1 // Insert record type
+	UPDATE CommandType = 2 // Update record type
+	DELETE CommandType = 3 // Delete record type
 )
 
 // Sort enum
@@ -67,6 +66,15 @@ type QueryColumn struct {
 	Length int    // length of the column
 }
 
+type EngineConstants struct {
+	StringEnclosingChar    string // Gets or sets the character that encloses a string in the query
+	StringEscapeChar       string // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
+	ReservedWordEscapeChar string // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
+	ParameterChar          string // Gets or sets the character placeholder for prepared statements
+	ParameterInSequence    bool   // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
+	ResultLimitPosition    Limit  // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
+}
+
 type queryValue struct {
 	column      string      // Name of the column
 	value       interface{} // value of the column
@@ -90,27 +98,22 @@ type querySort struct {
 
 // QueryBuilder is a structure to build SQL queries
 type QueryBuilder struct {
-	TableName              string                                                              // Table or view name of the query
-	CommandType            Command                                                             // Command type
-	Columns                []QueryColumn                                                       // Columns of the query
-	Values                 []queryValue                                                        // Values of the columns
-	Order                  []querySort                                                         // Order by columns
-	Group                  []string                                                            // Group by columns
-	Filter                 []queryFilter                                                       // Query filter
-	StringEnclosingChar    string                                                              // Gets or sets the character that encloses a string in the query
-	StringEscapeChar       string                                                              // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
-	ReservedWordEscapeChar string                                                              // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
-	ParameterChar          string                                                              // Gets or sets the character placeholder for prepared statements
-	ParameterInSequence    bool                                                                // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
-	SkipNilWriteColumn     bool                                                                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	ResultLimitPosition    Limit                                                               // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
-	ResultLimit            string                                                              // The value of the row limit
-	InterpolateTables      bool                                                                // When true, all table name with {} around it will be prepended with schema
-	Schema                 string                                                              // When the database info is not applied, this value will be used
-	ParameterOffset        int                                                                 // The parameter sequence offset
-	FilterFunc             func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
-	referenceMode          bool
-	referenceModePrefix    string
+	Source              string // Table or view name of the query
+	CommandType         CommandType
+	Filter              []queryFilter                                                       // Query filter
+	ResultLimit         string                                                              // The value of the row limit
+	ParameterOffset     int                                                                 // The parameter sequence offset
+	FilterFunc          func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
+	referenceMode       bool
+	referenceModePrefix string
+	schema              string
+	skipNilWriteColumn  bool // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	dbEngineConstants   EngineConstants
+	interpolateTables   bool          // When true, all table name with {} around it will be prepended with schema
+	order               []querySort   // Order by columns
+	group               []string      // Group by columns
+	columns             []QueryColumn // Columns of the query
+	values              []queryValue  // Values of the columns
 }
 
 // New builds a new QueryBuilder
@@ -124,20 +127,22 @@ type QueryBuilder struct {
 //	ReservedWordEscapeChar: `"`
 //	ResultLimitPosition:    REAR
 //	ResultLimit:            ""
-//	InterpolateTables:      true
-//	SkipNilWriteColumn:     false
+//	interpolateTables:      true
+//	skipNilWriteColumn:     false
 func New(options ...Option) *QueryBuilder {
 	n := QueryBuilder{
-		StringEnclosingChar:    `'`,
-		StringEscapeChar:       `\`,
-		ParameterChar:          `?`,
-		ReservedWordEscapeChar: `"`,
-		ResultLimitPosition:    REAR,
-		ResultLimit:            "",
-		InterpolateTables:      true,
-		SkipNilWriteColumn:     true,
-		referenceMode:          false,
-		referenceModePrefix:    `ref`,
+		dbEngineConstants: EngineConstants{
+			StringEnclosingChar:    `'`,
+			StringEscapeChar:       `\`,
+			ParameterChar:          `?`,
+			ReservedWordEscapeChar: `"`,
+			ResultLimitPosition:    REAR,
+		},
+		ResultLimit:         "",
+		interpolateTables:   true,
+		skipNilWriteColumn:  true,
+		referenceMode:       false,
+		referenceModePrefix: `ref`,
 	}
 	for _, o := range options {
 		if o == nil {
@@ -148,61 +153,74 @@ func New(options ...Option) *QueryBuilder {
 	return &n
 }
 
-// WithTableName sets the table name of a query builder
-func WithTableName(name string) Option {
+// Spawn creates a copy of a builder and resets the non-constant values
+func Spawn(builder QueryBuilder) *QueryBuilder {
+	return &QueryBuilder{
+		dbEngineConstants:   builder.dbEngineConstants,
+		referenceMode:       builder.referenceMode,
+		referenceModePrefix: builder.referenceModePrefix,
+		skipNilWriteColumn:  builder.skipNilWriteColumn,
+		interpolateTables:   builder.interpolateTables,
+		schema:              builder.schema,
+		ResultLimit:         "",
+	}
+}
+
+// Source sets the table, view or stored procedure name
+func Source(name string) Option {
 	return func(q *QueryBuilder) error {
-		q.TableName = name
+		q.Source = name
 		return nil
 	}
 }
 
-// WithSchema sets the schema of a query builder
-func WithSchema(schema string) Option {
+// Schema sets the schema of a query builder
+func Schema(sch string) Option {
 	return func(q *QueryBuilder) error {
-		q.Schema = schema
+		q.schema = sch
 		return nil
 	}
 }
 
-// WithCommand sets the command of a query builder
-func WithCommand(ct Command) Option {
+// Command sets the command of a query builder
+func Command(ct CommandType) Option {
 	return func(q *QueryBuilder) error {
 		q.CommandType = ct
 		return nil
 	}
 }
 
-// WithCommand sets the command of a query builder
-func WithConfig(cfg *cfg.DatabaseInfo) Option {
+// Constants are builder settings that follows the database engine settings.
+func Constants(ec EngineConstants) Option {
 	return func(q *QueryBuilder) error {
-		q.Schema = cfg.Schema
-		q.ParameterChar = cfg.ParameterPlaceholder
-		q.ParameterInSequence = cfg.ParameterInSequence
-		if cfg.StringEnclosingChar != nil {
-			q.StringEnclosingChar = *cfg.StringEnclosingChar
-		}
-		if cfg.StringEscapeChar != nil {
-			q.StringEscapeChar = *cfg.StringEscapeChar
-		}
-		if cfg.ReservedWordEscapeChar != nil {
-			q.ReservedWordEscapeChar = *cfg.ReservedWordEscapeChar
-		}
-		if cfg.InterpolateTables != nil {
-			q.InterpolateTables = *cfg.InterpolateTables
-		}
+		q.dbEngineConstants = ec
 		return nil
 	}
 }
 
-// ReferenceMode generates query that adds a `ref` prefix to table names
-func ReferenceMode(indeed bool) Option {
+// Interpolate converts all table name with {} around it will be prepended with schema and reference code prefix
+func Interpolate(value bool) Option {
 	return func(q *QueryBuilder) error {
-		q.referenceMode = indeed
+		q.interpolateTables = value
 		return nil
 	}
 }
 
-// ReferenceModePrefix changes prefix to table names in ReferenceMode
+// ReferenceMode enables the builder to generate query that adds a `ref` prefix to table names after the schema.
+//
+// This can be used in instances that the database object is just a reference populated by event source rather than user interaction.
+//
+// Warning: If the interpolation is set to off, this property is ignored.
+func ReferenceMode(value bool) Option {
+	return func(q *QueryBuilder) error {
+		q.referenceMode = value
+		return nil
+	}
+}
+
+// ReferenceModePrefix changes the reference prefix to add to database object names when set in ReferenceMode
+//
+// Warning: If the interpolation is set to off, this property is ignored.
 func ReferenceModePrefix(prefix string) Option {
 	return func(q *QueryBuilder) error {
 		if prefix == "" {
@@ -216,7 +234,7 @@ func ReferenceModePrefix(prefix string) Option {
 // SkipNilWrite sets the condition to skip nil columns when writing to table
 func SkipNilWrite(skip bool) Option {
 	return func(q *QueryBuilder) error {
-		q.SkipNilWriteColumn = skip
+		q.skipNilWriteColumn = skip
 		return nil
 	}
 }
@@ -246,26 +264,28 @@ func MatchToNull(match interface{}) ValueOption {
 }
 
 // NewSelect is a shortcut builder for Select queries
-func NewSelect(table string, opts ...Option) *QueryBuilder {
-	opts = append(opts, WithTableName(table), WithCommand(SELECT))
+//
+// dataObject can be a table, view or a joined query name
+func NewSelect(dataObject string, opts ...Option) *QueryBuilder {
+	opts = append(opts, Source(dataObject), Command(SELECT))
 	return New(opts...)
 }
 
 // NewInsert is a shortcut builder for Insert queries
 func NewInsert(table string, opts ...Option) *QueryBuilder {
-	opts = append(opts, WithTableName(table), WithCommand(INSERT))
+	opts = append(opts, Source(table), Command(INSERT))
 	return New(opts...)
 }
 
 // NewUpdate is a shortcut builder for Update queries
 func NewUpdate(table string, opts ...Option) *QueryBuilder {
-	opts = append(opts, WithTableName(table), WithCommand(UPDATE))
+	opts = append(opts, Source(table), Command(UPDATE))
 	return New(opts...)
 }
 
 // NewDelete is a shortcut builder for Delete queries
 func NewDelete(table string, opts ...Option) *QueryBuilder {
-	opts = append(opts, WithTableName(table), WithCommand(DELETE))
+	opts = append(opts, Source(table), Command(DELETE))
 	return New(opts...)
 }
 
@@ -306,7 +326,7 @@ func (qb *QueryBuilder) SetColumnValue(name string, value interface{}) *QueryBui
 	if qb.CommandType == DELETE {
 		return qb
 	}
-	for i, v := range qb.Values {
+	for i, v := range qb.values {
 		if strings.EqualFold(name, v.column) {
 			continue
 		}
@@ -318,7 +338,10 @@ func (qb *QueryBuilder) SetColumnValue(name string, value interface{}) *QueryBui
 // Escape a string value to prevent unescaped errors
 func (qb *QueryBuilder) Escape(value string) string {
 	if len(value) > 0 {
-		return strings.ReplaceAll(value, qb.StringEnclosingChar, qb.StringEscapeChar+qb.StringEnclosingChar)
+		return strings.ReplaceAll(
+			value,
+			qb.dbEngineConstants.StringEnclosingChar,
+			qb.dbEngineConstants.StringEscapeChar+qb.dbEngineConstants.StringEnclosingChar)
 	}
 	return value
 }
@@ -346,29 +369,29 @@ func (qb *QueryBuilder) AddFilterExp(expr string) *QueryBuilder {
 
 // AddOrder - adds a column to order by into the QueryBuilder for both BuildString() and BuildDataHelper() function.
 func (qb *QueryBuilder) AddOrder(column string, order Sort) *QueryBuilder {
-	qb.Order = append(qb.Order, querySort{column: column, order: order})
+	qb.order = append(qb.order, querySort{column: column, order: order})
 	return qb
 }
 
 // AddGroup - adds a group by clause
 func (qb *QueryBuilder) AddGroup(group string) *QueryBuilder {
-	qb.Group = append(qb.Group, group)
+	qb.group = append(qb.group, group)
 	return qb
 }
 
 // Build an SQL string with corresponding values
 func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
-	if qb.TableName == "" {
+	if qb.Source == "" {
 		return "", nil, ErrNoTableSpecified
 	}
-	if len(qb.Columns) == 0 && qb.CommandType != DELETE {
+	if len(qb.columns) == 0 && qb.CommandType != DELETE {
 		return "", nil, ErrNoColumnSpecified
 	}
 	// get real values of qb.Values and set them back
-	for i := range qb.Values {
-		qb.Values[i].value = realValue(qb.Values[i].value)
-		qb.Values[i].defvalue = realValue(qb.Values[i].defvalue)
-		qb.Values[i].matchtonull = realValue(qb.Values[i].matchtonull)
+	for i := range qb.values {
+		qb.values[i].value = realValue(qb.values[i].value)
+		qb.values[i].defvalue = realValue(qb.values[i].defvalue)
+		qb.values[i].matchtonull = realValue(qb.values[i].matchtonull)
 	}
 
 	// get real values of filter values and set them back
@@ -378,11 +401,11 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 
 	// Auto attach schema
 	var sb strings.Builder
-	tbn := qb.TableName
+	tbn := qb.Source
 	switch qb.CommandType {
 	case SELECT:
 		sb.WriteString("SELECT ")
-		if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == FRONT {
+		if len(qb.ResultLimit) > 0 && qb.dbEngineConstants.ResultLimitPosition == FRONT {
 			sb.WriteString(" TOP " + qb.ResultLimit + " ")
 		}
 	case INSERT:
@@ -399,8 +422,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	paramcnt := qb.ParameterOffset
 	columncnt := 0
 
-	for idx, v := range qb.Values {
-		qb.Values[idx].forcenull = false
+	for idx, v := range qb.values {
+		qb.values[idx].forcenull = false
 		isnl := isNil(v.value)
 		// If value is nil, get defvalue
 		if isnl && !isNil(v.defvalue) {
@@ -410,25 +433,25 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		// If matchtonull is true, column value is nil
 		if !isnl && !isNil(v.matchtonull) && v.matchtonull == v.value {
 			isnl = true
-			qb.Values[idx].forcenull = true
-			qb.Values[idx].sqlstring = true
+			qb.values[idx].forcenull = true
+			qb.values[idx].sqlstring = true
 		}
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
-		qb.Values[idx].skip = qb.SkipNilWriteColumn && isnl
+		qb.values[idx].skip = qb.skipNilWriteColumn && isnl
 		switch qb.CommandType {
 		case SELECT:
 			sb.WriteString(cma + v.column)
 			cma = ", "
 			columncnt++
 		case INSERT:
-			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
+			if qb.values[idx].skip && !qb.values[idx].forcenull {
 				break
 			}
 			sb.WriteString(cma + v.column)
 			cma = ", "
 			columncnt++
 		case UPDATE:
-			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
+			if qb.values[idx].skip && !qb.values[idx].forcenull {
 				break
 			}
 			sb.WriteString(cma + v.column)
@@ -437,8 +460,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				pchar += "NULL"
 			} else {
 				if v.sqlstring {
-					pchar += qb.ParameterChar
-					if qb.ParameterInSequence {
+					pchar += qb.dbEngineConstants.ParameterChar
+					if qb.dbEngineConstants.ParameterInSequence {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
@@ -480,7 +503,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		pchar = ""
 		inscnt := 0
 		q := make([]string, columncnt)
-		for _, v := range qb.Values {
+		for _, v := range qb.values {
 			if v.skip && !v.forcenull {
 				continue
 			}
@@ -489,8 +512,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				if !v.sqlstring {
 					pchar, _ = v.value.(string)
 				} else {
-					pchar = qb.ParameterChar
-					if qb.ParameterInSequence {
+					pchar = qb.dbEngineConstants.ParameterChar
+					if qb.dbEngineConstants.ParameterInSequence {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
@@ -509,8 +532,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		var tsb strings.Builder
 		for _, c := range qb.Filter {
 			if !isNil(c.value) {
-				pchar = qb.ParameterChar
-				if qb.ParameterInSequence {
+				pchar = qb.dbEngineConstants.ParameterChar
+				if qb.dbEngineConstants.ParameterInSequence {
 					paramcnt++
 					pchar += strconv.Itoa(paramcnt)
 				}
@@ -524,7 +547,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			cma = "\r\t\t AND "
 		}
 		if qb.FilterFunc != nil {
-			fbs, _ := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
+			fbs, _ := qb.FilterFunc(paramcnt, qb.dbEngineConstants.ParameterChar, qb.dbEngineConstants.ParameterInSequence)
 			if len(fbs) > 0 {
 				for _, fb := range fbs {
 					tsb.WriteString(cma + fb)
@@ -538,10 +561,10 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	}
 
 	// build order bys
-	if len(qb.Order) > 0 {
+	if len(qb.order) > 0 {
 		sb.WriteString(" ORDER BY ")
 		cma = ""
-		for _, v := range qb.Order {
+		for _, v := range qb.order {
 			sb.WriteString(cma + v.column)
 			if v.order == ASC {
 				sb.WriteString(" ASC")
@@ -552,17 +575,17 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		}
 	}
 	// build group by
-	if len(qb.Group) > 0 {
-		sb.WriteString(" GROUP BY " + strings.Join(qb.Group, ", "))
+	if len(qb.group) > 0 {
+		sb.WriteString(" GROUP BY " + strings.Join(qb.group, ", "))
 	}
-	if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == REAR {
+	if len(qb.ResultLimit) > 0 && qb.dbEngineConstants.ResultLimitPosition == REAR {
 		sb.WriteString(" LIMIT " + qb.ResultLimit)
 	}
 	sb.WriteString(";")
 
 	// build values
 	args = make([]interface{}, 0, 15)
-	for _, v := range qb.Values {
+	for _, v := range qb.values {
 		if v.skip ||
 			!v.sqlstring ||
 			!(qb.CommandType == INSERT || qb.CommandType == UPDATE) ||
@@ -579,14 +602,14 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		}
 	}
 	if qb.FilterFunc != nil {
-		fbs, fbargs := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
+		fbs, fbargs := qb.FilterFunc(paramcnt, qb.dbEngineConstants.ParameterChar, qb.dbEngineConstants.ParameterInSequence)
 		if len(fbs) > 0 {
 			args = append(args, fbargs...)
 		}
 	}
 
 	query = sb.String()
-	if qb.InterpolateTables {
+	if qb.interpolateTables {
 		sch := ``
 		if qb.referenceMode {
 			sch = qb.referenceModePrefix
@@ -595,8 +618,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 			}
 		}
 		// If there is a schema defined, it will prevail
-		if qb.Schema != "" {
-			sch = qb.Schema
+		if qb.schema != "" {
+			sch = qb.schema
 		}
 		// replace table names marked with {table}
 		query = InterpolateTable(query, sch)
@@ -606,29 +629,29 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 }
 
 func (qb *QueryBuilder) addColumn(name string, length int) int {
-	for i, v := range qb.Columns {
+	for i, v := range qb.columns {
 		if !strings.EqualFold(name, v.Name) {
 			continue
 		}
 		return i
 	}
-	qb.Columns = append(qb.Columns, QueryColumn{Name: name, Length: length})
-	return len(qb.Columns) - 1
+	qb.columns = append(qb.columns, QueryColumn{Name: name, Length: length})
+	return len(qb.columns) - 1
 }
 
 func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue interface{}, matchToNull interface{}) *QueryBuilder {
-	for i, v := range qb.Values {
-		if !strings.EqualFold(qb.Columns[index].Name, v.column) {
+	for i, v := range qb.values {
+		if !strings.EqualFold(qb.columns[index].Name, v.column) {
 			continue
 		}
-		qb.Values[i].sqlstring = sqlString
-		qb.Values[i].defvalue = defValue
-		qb.Values[i].matchtonull = matchToNull
-		qb.Values[i].value = value
+		qb.values[i].sqlstring = sqlString
+		qb.values[i].defvalue = defValue
+		qb.values[i].matchtonull = matchToNull
+		qb.values[i].value = value
 		return qb
 	}
-	qb.Values = append(qb.Values, queryValue{
-		column:      qb.Columns[index].Name,
+	qb.values = append(qb.values, queryValue{
+		column:      qb.columns[index].Name,
 		sqlstring:   sqlString,
 		defvalue:    defValue,
 		matchtonull: matchToNull,

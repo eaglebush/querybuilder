@@ -11,10 +11,14 @@ import (
 
 func TestBuildDataHelperSelect(t *testing.T) {
 
-	q := New(WithTableName("{TableNotSoImportant}"), WithCommand(SELECT))
-	q.ResultLimitPosition = REAR
-	q.InterpolateTables = true
-	q.Schema = "carr"
+	q := New(
+		Source("{TableNotSoImportant}"),
+		Schema("carr"),
+		Command(SELECT),
+		Constants(EngineConstants{
+			ResultLimitPosition: REAR,
+		}),
+	)
 	q.ResultLimit = "100"
 
 	q.AddColumn("UserKey").AddColumn("UserName").AddColumn("FullName").AddColumn("Gender").AddColumn("Age") //Method chaining
@@ -54,7 +58,7 @@ func TestBuildDataHelperSelectWithFilterValues(t *testing.T) {
 
 	*data.DomainCode = "VDI"
 
-	qb := New(WithTableName("{TableNotSoImportant}"))
+	qb := New(Source("{TableNotSoImportant}"))
 
 	qb.AddColumn(`record_key`)
 
@@ -128,9 +132,13 @@ func TestBuildDataHelperSelectWithFilterBuilderValues(t *testing.T) {
 
 	*data.DomainCode = "VDI"
 
-	qb := New(WithTableName("{TableNotSoImportant}"))
-	qb.ParameterInSequence = true
-	qb.ParameterChar = "@p"
+	qb := New(
+		Source("{TableNotSoImportant}"),
+		Constants(EngineConstants{
+			ParameterInSequence: true,
+			ParameterChar:       "@p",
+		}),
+	)
 
 	qb.AddColumn(`record_key`)
 	qb.AddFilter(`domain_code`, data.DomainCode)
@@ -168,13 +176,15 @@ func TestBuildDataHelperSelectWithFilterBuilderValues(t *testing.T) {
 }
 
 func TestBuildDataHelperInsert(t *testing.T) {
-	q := New(WithTableName("{TableNotSoImportant}"))
+	q := New(
+		Source("{TableNotSoImportant}"),
+		Command(INSERT),
+		SkipNilWrite(false),
+		Constants(EngineConstants{
+			ParameterInSequence: true,
+			ParameterChar:       "@p",
+		}))
 
-	q.ParameterChar = "@p"
-	q.ParameterInSequence = true
-	q.SkipNilWriteColumn = false //Ship if the value is null. Works only on INSERT and UPDATE
-
-	q.CommandType = INSERT
 	q.AddValue("UserKey", 5, nil)
 	q.AddValue("UserName", "eaglebush", nil)
 	q.AddValue("Alias", "zaldy.baguinon", nil)
@@ -211,12 +221,16 @@ func TestBuildDataHelperInsert(t *testing.T) {
 }
 
 func TestBuildDataHelperUpdate(t *testing.T) {
-	q := New(WithTableName("{TableNotSoImportant}"), WithCommand(UPDATE))
-	q.Schema = "hack"
-	q.InterpolateTables = true
-	q.ParameterChar = "$"
-	q.ParameterInSequence = true
-	q.SkipNilWriteColumn = false
+	q := New(
+		Source("{TableNotSoImportant}"),
+		Schema("hack"),
+		SkipNilWrite(false),
+		Command(UPDATE),
+		Constants(EngineConstants{
+			ParameterInSequence: true,
+			ParameterChar:       "$",
+		}),
+	)
 
 	q.AddValue("UserKey", 5)
 	q.AddValue("UserName", "eaglebush")
@@ -250,9 +264,14 @@ func TestBuildDataHelperUpdate(t *testing.T) {
 }
 
 func TestBuildDataHelperDelete(t *testing.T) {
-	q := New(WithTableName("{TableNotSoImportant}"), WithCommand(DELETE))
-	q.ParameterChar = "$"
-	q.ParameterInSequence = true
+	q := New(
+		Source("{TableNotSoImportant}"),
+		Command(DELETE),
+		Constants(EngineConstants{
+			ParameterInSequence: true,
+			ParameterChar:       "$",
+		}),
+	)
 
 	q.AddFilterExp("CountryCode='PHL'")
 	q.AddFilter("Town", "Manila")
