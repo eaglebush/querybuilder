@@ -131,13 +131,7 @@ type QueryBuilder struct {
 //	skipNilWriteColumn:     false
 func New(options ...Option) *QueryBuilder {
 	n := QueryBuilder{
-		dbEngineConstants: EngineConstants{
-			StringEnclosingChar:    `'`,
-			StringEscapeChar:       `\`,
-			ParameterChar:          `?`,
-			ReservedWordEscapeChar: `"`,
-			ResultLimitPosition:    REAR,
-		},
+		dbEngineConstants:   InitConstants(),
 		ResultLimit:         "",
 		interpolateTables:   true,
 		skipNilWriteColumn:  true,
@@ -163,6 +157,17 @@ func Spawn(builder QueryBuilder) *QueryBuilder {
 		interpolateTables:   builder.interpolateTables,
 		schema:              builder.schema,
 		ResultLimit:         "",
+	}
+}
+
+// InitConstants return defaults of database engine constants
+func InitConstants() EngineConstants {
+	return EngineConstants{
+		StringEnclosingChar:    `'`,
+		StringEscapeChar:       `\`,
+		ParameterChar:          `?`,
+		ReservedWordEscapeChar: `"`,
+		ResultLimitPosition:    REAR,
 	}
 }
 
