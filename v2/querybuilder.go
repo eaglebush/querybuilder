@@ -69,7 +69,7 @@ type QueryColumn struct {
 type EngineConstants struct {
 	StringEnclosingChar    string // Gets or sets the character that encloses a string in the query
 	StringEscapeChar       string // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
-	ReservedWordEscapeChar string // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
+	ReservedWordEscapeChar string // Reserved word escape chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
 	ParameterChar          string // Gets or sets the character placeholder for prepared statements
 	ParameterInSequence    bool   // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
 	ResultLimitPosition    Limit  // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
