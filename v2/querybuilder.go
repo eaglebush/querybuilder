@@ -226,6 +226,7 @@ func Config(di *cfg.DatabaseInfo) Option {
 	return func(q *QueryBuilder) error {
 		q.dbInfo = di
 		InitConstants(di)
+		q.schema = di.Schema
 		return nil
 	}
 }
