@@ -17,6 +17,7 @@ import (
 	"time"
 
 	dhl "github.com/NarsilWorks-Inc/datahelperlite"
+	cfg "github.com/eaglebush/config"
 	ssd "github.com/shopspring/decimal"
 )
 
@@ -114,6 +115,7 @@ type QueryBuilder struct {
 	group               []string      // Group by columns
 	columns             []QueryColumn // Columns of the query
 	values              []queryValue  // Values of the columns
+	dbInfo              *cfg.DatabaseInfo
 }
 
 // New builds a new QueryBuilder
@@ -131,7 +133,7 @@ type QueryBuilder struct {
 //	skipNilWriteColumn:     false
 func New(options ...Option) *QueryBuilder {
 	n := QueryBuilder{
-		dbEngineConstants:   InitConstants(),
+		dbEngineConstants:   InitConstants(nil),
 		ResultLimit:         "",
 		interpolateTables:   true,
 		skipNilWriteColumn:  true,
@@ -168,8 +170,8 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 }
 
 // InitConstants return defaults of database engine constants
-func InitConstants() EngineConstants {
-	return EngineConstants{
+func InitConstants(di *cfg.DatabaseInfo) EngineConstants {
+	ec := EngineConstants{
 		StringEnclosingChar:    `'`,
 		StringEscapeChar:       `\`,
 		ParameterChar:          `?`,
@@ -177,6 +179,22 @@ func InitConstants() EngineConstants {
 		ParameterInSequence:    false,
 		ResultLimitPosition:    REAR,
 	}
+	if di != nil {
+		if di.StringEnclosingChar != nil {
+			ec.StringEnclosingChar = *di.StringEnclosingChar
+		}
+		if di.StringEscapeChar != nil {
+			ec.StringEscapeChar = *di.StringEscapeChar
+		}
+		if di.ParameterPlaceholder != "" {
+			ec.ParameterChar = di.ParameterPlaceholder
+		}
+		ec.ParameterInSequence = di.ParameterInSequence
+		if di.ReservedWordEscapeChar != nil {
+			ec.ReservedWordEscapeChar = *di.ReservedWordEscapeChar
+		}
+	}
+	return ec
 }
 
 // Source sets the table, view or stored procedure name
@@ -199,6 +217,15 @@ func Schema(sch string) Option {
 func Command(ct CommandType) Option {
 	return func(q *QueryBuilder) error {
 		q.CommandType = ct
+		return nil
+	}
+}
+
+// Config sets the database info
+func Config(di *cfg.DatabaseInfo) Option {
+	return func(q *QueryBuilder) error {
+		q.dbInfo = di
+		InitConstants(di)
 		return nil
 	}
 }
