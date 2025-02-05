@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20241218143223-6f2d4b5bf352
 	github.com/eaglebush/config v0.0.0-20241112071821-d764539c5f47
-	github.com/eaglebush/filterbuilder v0.0.0-20250205045752-e94c98338466
+	github.com/eaglebush/filterbuilder v0.0.0-20250205053606-6f6ac034588d
 	github.com/shopspring/decimal v1.4.0
 )
 
