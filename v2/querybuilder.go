@@ -57,9 +57,9 @@ type ValueOption func(vo *ValueCompareOption) error
 
 // ValueCompareOption options for adding values
 type ValueCompareOption struct {
-	SQLString   bool        // Sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
-	Default     interface{} // When set to non-nil, this is the default value when the value encounters a nil
-	MatchToNull interface{} // When the primary value matches with this value, the resulting value will be set to NULL
+	SQLString   bool // Sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
+	Default     any  // When set to non-nil, this is the default value when the value encounters a nil
+	MatchToNull any  // When the primary value matches with this value, the resulting value will be set to NULL
 }
 
 type QueryColumn struct {
@@ -77,19 +77,19 @@ type EngineConstants struct {
 }
 
 type queryValue struct {
-	column      string      // Name of the column
-	value       interface{} // value of the column
-	defvalue    interface{} // default value
-	matchtonull interface{} // when primary value is matched by this value, it will set the value to NULL
-	sqlstring   bool        // indicates if the value is an SQL string
-	skip        bool        // skip this query value
-	forcenull   bool        // forced to null
+	column      string // Name of the column
+	value       any    // value of the column
+	defValue    any    // default value
+	matchToNull any    // when primary value is matched by this value, it will set the value to NULL
+	sqlstring   bool   // indicates if the value is an SQL string
+	skip        bool   // skip this query value
+	forceNull   bool   // forced to null
 }
 
 type queryFilter struct {
-	expression    string      // Column name or expression of the filter
-	value         interface{} // Value of the filter if the expression is a column name
-	containsvalue bool        // indicates that the filter has a separate value, not a filter expression
+	expression    string // Column name or expression of the filter
+	value         any    // Value of the filter if the expression is a column name
+	containsValue bool   // indicates that the filter has a separate value, not a filter expression
 }
 
 type querySort struct {
@@ -99,23 +99,26 @@ type querySort struct {
 
 // QueryBuilder is a structure to build SQL queries
 type QueryBuilder struct {
-	Source              string // Table or view name of the query
-	CommandType         CommandType
-	Filter              []queryFilter                                                       // Query filter
-	ResultLimit         string                                                              // The value of the row limit
-	ParameterOffset     int                                                                 // The parameter sequence offset
-	FilterFunc          func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
-	referenceMode       bool
-	referenceModePrefix string
-	schema              string
-	skipNilWriteColumn  bool // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	dbEngineConstants   EngineConstants
-	interpolateTables   bool          // When true, all table name with {} around it will be prepended with schema
-	order               []querySort   // Order by columns
-	group               []string      // Group by columns
-	columns             []QueryColumn // Columns of the query
-	values              []queryValue  // Values of the columns
-	dbInfo              *cfg.DatabaseInfo
+	// Public fields
+	Source          string                                                      // Table or view name of the query
+	CommandType     CommandType                                                 // Command type
+	Filter          []queryFilter                                               // Query filter
+	ResultLimit     string                                                      // The value of the row limit
+	ParameterOffset int                                                         // The parameter sequence offset
+	FilterFunc      func(offset int, char string, inSeq bool) ([]string, []any) // returns filter from outside functions like filterbuilder
+
+	// Private fields
+	refMode     bool              // In reference mode, queries are built with prepended reference mode prefix, if it was set.
+	refModePfx  string            // Prefix of the table in reference mode. Default is usually 'ref_' to indicate that the table must not allow users to insert and modify records
+	schema      string            // The schema of the table
+	skpNilWrCol bool              // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	dbEnConst   EngineConstants   // These constants are specific for database vendors
+	intTbls     bool              // When true, all table name with {} around it will be prepended with schema
+	order       []querySort       // Order by columns
+	group       []string          // Group by columns
+	columns     []QueryColumn     // Columns of the query
+	values      []queryValue      // Values of the columns
+	dbInfo      *cfg.DatabaseInfo // The database information from the configuration
 }
 
 // New builds a new QueryBuilder
@@ -133,12 +136,12 @@ type QueryBuilder struct {
 //	skipNilWriteColumn:     false
 func New(options ...Option) *QueryBuilder {
 	n := QueryBuilder{
-		dbEngineConstants:   InitConstants(nil),
-		ResultLimit:         "",
-		interpolateTables:   true,
-		skipNilWriteColumn:  true,
-		referenceMode:       false,
-		referenceModePrefix: `ref`,
+		dbEnConst:   InitConstants(nil),
+		intTbls:     true,
+		skpNilWrCol: true,
+		refMode:     false,
+		refModePfx:  `ref`,
+		ResultLimit: "",
 	}
 	for _, o := range options {
 		if o == nil {
@@ -152,13 +155,13 @@ func New(options ...Option) *QueryBuilder {
 // Spawn creates a copy of a builder and resets the non-constant values
 func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 	n := QueryBuilder{
-		dbEngineConstants:   builder.dbEngineConstants,
-		referenceMode:       builder.referenceMode,
-		referenceModePrefix: builder.referenceModePrefix,
-		skipNilWriteColumn:  builder.skipNilWriteColumn,
-		interpolateTables:   builder.interpolateTables,
-		schema:              builder.schema,
-		ResultLimit:         "",
+		dbEnConst:   builder.dbEnConst,
+		refMode:     builder.refMode,
+		refModePfx:  builder.refModePfx,
+		skpNilWrCol: builder.skpNilWrCol,
+		intTbls:     builder.intTbls,
+		schema:      builder.schema,
+		ResultLimit: "",
 	}
 	for _, o := range options {
 		if o == nil {
@@ -169,7 +172,7 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 	return &n
 }
 
-// InitConstants return defaults of database engine constants
+// InitConstants return defaults of database engine constants, with database configuration if present
 func InitConstants(di *cfg.DatabaseInfo) EngineConstants {
 	ec := EngineConstants{
 		StringEnclosingChar:    `'`,
@@ -234,7 +237,7 @@ func Config(di *cfg.DatabaseInfo) Option {
 // Constants are builder settings that follows the database engine settings.
 func Constants(ec EngineConstants) Option {
 	return func(q *QueryBuilder) error {
-		q.dbEngineConstants = ec
+		q.dbEnConst = ec
 		return nil
 	}
 }
@@ -242,7 +245,7 @@ func Constants(ec EngineConstants) Option {
 // Interpolate converts all table name with {} around it will be prepended with schema and reference code prefix
 func Interpolate(value bool) Option {
 	return func(q *QueryBuilder) error {
-		q.interpolateTables = value
+		q.intTbls = value
 		return nil
 	}
 }
@@ -254,7 +257,7 @@ func Interpolate(value bool) Option {
 // Warning: If the interpolation is set to off, this property is ignored.
 func ReferenceMode(value bool) Option {
 	return func(q *QueryBuilder) error {
-		q.referenceMode = value
+		q.refMode = value
 		return nil
 	}
 }
@@ -267,7 +270,7 @@ func ReferenceModePrefix(prefix string) Option {
 		if prefix == "" {
 			return nil
 		}
-		q.referenceModePrefix = prefix
+		q.refModePfx = prefix
 		return nil
 	}
 }
@@ -275,7 +278,7 @@ func ReferenceModePrefix(prefix string) Option {
 // SkipNilWrite sets the condition to skip nil columns when writing to table
 func SkipNilWrite(skip bool) Option {
 	return func(q *QueryBuilder) error {
-		q.skipNilWriteColumn = skip
+		q.skpNilWrCol = skip
 		return nil
 	}
 }
@@ -289,7 +292,7 @@ func IsSqlString(indeed bool) ValueOption {
 }
 
 // Default is the default value of the column when the value encounters a nil
-func Default(value interface{}) ValueOption {
+func Default(value any) ValueOption {
 	return func(vco *ValueCompareOption) error {
 		vco.Default = value
 		return nil
@@ -297,7 +300,7 @@ func Default(value interface{}) ValueOption {
 }
 
 // MatchToNull is the condition the primary value matches with this value, the resulting value will be set to NULL
-func MatchToNull(match interface{}) ValueOption {
+func MatchToNull(match any) ValueOption {
 	return func(vco *ValueCompareOption) error {
 		vco.MatchToNull = match
 		return nil
@@ -373,7 +376,7 @@ func (qb *QueryBuilder) AddColumnFixed(name string, length int) *QueryBuilder {
 }
 
 // AddValue adds a value. The value options sets certain conditions to evaluate the supplied value
-func (qb *QueryBuilder) AddValue(name string, value interface{}, vcOpts ...ValueOption) *QueryBuilder {
+func (qb *QueryBuilder) AddValue(name string, value any, vcOpts ...ValueOption) *QueryBuilder {
 	vo := ValueCompareOption{
 		SQLString:   true,
 		Default:     nil,
@@ -389,7 +392,7 @@ func (qb *QueryBuilder) AddValue(name string, value interface{}, vcOpts ...Value
 }
 
 // SetColumnValue - sets the column value
-func (qb *QueryBuilder) SetColumnValue(name string, value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) SetColumnValue(name string, value any) *QueryBuilder {
 	if qb.CommandType == DELETE {
 		return qb
 	}
@@ -407,14 +410,14 @@ func (qb *QueryBuilder) Escape(value string) string {
 	if len(value) > 0 {
 		return strings.ReplaceAll(
 			value,
-			qb.dbEngineConstants.StringEnclosingChar,
-			qb.dbEngineConstants.StringEscapeChar+qb.dbEngineConstants.StringEnclosingChar)
+			qb.dbEnConst.StringEnclosingChar,
+			qb.dbEnConst.StringEscapeChar+qb.dbEnConst.StringEnclosingChar)
 	}
 	return value
 }
 
 // AddFilter adds a filter with value.
-func (qb *QueryBuilder) AddFilter(column string, value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) AddFilter(column string, value any) *QueryBuilder {
 	qb.Filter = append(
 		qb.Filter,
 		queryFilter{
@@ -429,7 +432,7 @@ func (qb *QueryBuilder) AddFilterExp(expr string) *QueryBuilder {
 	qb.Filter = append(qb.Filter, queryFilter{
 		expression:    expr,
 		value:         nil,
-		containsvalue: true,
+		containsValue: true,
 	})
 	return qb
 }
@@ -447,7 +450,7 @@ func (qb *QueryBuilder) AddGroup(group string) *QueryBuilder {
 }
 
 // Build an SQL string with corresponding values
-func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
+func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 	if qb.Source == "" {
 		return "", nil, ErrNoTableSpecified
 	}
@@ -457,8 +460,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	// get real values of qb.Values and set them back
 	for i := range qb.values {
 		qb.values[i].value = realValue(qb.values[i].value)
-		qb.values[i].defvalue = realValue(qb.values[i].defvalue)
-		qb.values[i].matchtonull = realValue(qb.values[i].matchtonull)
+		qb.values[i].defValue = realValue(qb.values[i].defValue)
+		qb.values[i].matchToNull = realValue(qb.values[i].matchToNull)
 	}
 
 	// get real values of filter values and set them back
@@ -472,7 +475,7 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	switch qb.CommandType {
 	case SELECT:
 		sb.WriteString("SELECT ")
-		if len(qb.ResultLimit) > 0 && qb.dbEngineConstants.ResultLimitPosition == FRONT {
+		if len(qb.ResultLimit) > 0 && qb.dbEnConst.ResultLimitPosition == FRONT {
 			sb.WriteString(" TOP " + qb.ResultLimit + " ")
 		}
 	case INSERT:
@@ -490,35 +493,35 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	columncnt := 0
 
 	for idx, v := range qb.values {
-		qb.values[idx].forcenull = false
+		qb.values[idx].forceNull = false
 		isnl := isNil(v.value)
 		// If value is nil, get defvalue
-		if isnl && !isNil(v.defvalue) {
-			v.value = v.defvalue
+		if isnl && !isNil(v.defValue) {
+			v.value = v.defValue
 			isnl = false
 		}
 		// If matchtonull is true, column value is nil
-		if !isnl && !isNil(v.matchtonull) && v.matchtonull == v.value {
+		if !isnl && !isNil(v.matchToNull) && v.matchToNull == v.value {
 			isnl = true
-			qb.values[idx].forcenull = true
+			qb.values[idx].forceNull = true
 			qb.values[idx].sqlstring = true
 		}
 		// Skip columns to render if the SkipNilWriteColumn is true and value is nil
-		qb.values[idx].skip = qb.skipNilWriteColumn && isnl
+		qb.values[idx].skip = qb.skpNilWrCol && isnl
 		switch qb.CommandType {
 		case SELECT:
 			sb.WriteString(cma + v.column)
 			cma = ", "
 			columncnt++
 		case INSERT:
-			if qb.values[idx].skip && !qb.values[idx].forcenull {
+			if qb.values[idx].skip && !qb.values[idx].forceNull {
 				break
 			}
 			sb.WriteString(cma + v.column)
 			cma = ", "
 			columncnt++
 		case UPDATE:
-			if qb.values[idx].skip && !qb.values[idx].forcenull {
+			if qb.values[idx].skip && !qb.values[idx].forceNull {
 				break
 			}
 			sb.WriteString(cma + v.column)
@@ -527,8 +530,8 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 				pchar += "NULL"
 			} else {
 				if v.sqlstring {
-					pchar += qb.dbEngineConstants.ParameterChar
-					if qb.dbEngineConstants.ParameterInSequence {
+					pchar += qb.dbEnConst.ParameterChar
+					if qb.dbEnConst.ParameterInSequence {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
@@ -571,16 +574,16 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		inscnt := 0
 		q := make([]string, columncnt)
 		for _, v := range qb.values {
-			if v.skip && !v.forcenull {
+			if v.skip && !v.forceNull {
 				continue
 			}
 			pchar = "NULL"
-			if !isNil(v.value) && !v.forcenull {
+			if !isNil(v.value) && !v.forceNull {
 				if !v.sqlstring {
 					pchar, _ = v.value.(string)
 				} else {
-					pchar = qb.dbEngineConstants.ParameterChar
-					if qb.dbEngineConstants.ParameterInSequence {
+					pchar = qb.dbEnConst.ParameterChar
+					if qb.dbEnConst.ParameterInSequence {
 						paramcnt++
 						pchar += strconv.Itoa(paramcnt)
 					}
@@ -599,22 +602,22 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		var tsb strings.Builder
 		for _, c := range qb.Filter {
 			if !isNil(c.value) {
-				pchar = qb.dbEngineConstants.ParameterChar
-				if qb.dbEngineConstants.ParameterInSequence {
+				pchar = qb.dbEnConst.ParameterChar
+				if qb.dbEnConst.ParameterInSequence {
 					paramcnt++
 					pchar += strconv.Itoa(paramcnt)
 				}
 				tsb.WriteString(cma + c.expression + " = " + pchar)
 			} else {
 				tsb.WriteString(cma + c.expression)
-				if !c.containsvalue {
+				if !c.containsValue {
 					tsb.WriteString(" IS NULL")
 				}
 			}
 			cma = "\r\t\t AND "
 		}
 		if qb.FilterFunc != nil {
-			fbs, _ := qb.FilterFunc(paramcnt, qb.dbEngineConstants.ParameterChar, qb.dbEngineConstants.ParameterInSequence)
+			fbs, _ := qb.FilterFunc(paramcnt, qb.dbEnConst.ParameterChar, qb.dbEnConst.ParameterInSequence)
 			if len(fbs) > 0 {
 				for _, fb := range fbs {
 					tsb.WriteString(cma + fb)
@@ -645,19 +648,19 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 	if len(qb.group) > 0 {
 		sb.WriteString(" GROUP BY " + strings.Join(qb.group, ", "))
 	}
-	if len(qb.ResultLimit) > 0 && qb.dbEngineConstants.ResultLimitPosition == REAR {
+	if len(qb.ResultLimit) > 0 && qb.dbEnConst.ResultLimitPosition == REAR {
 		sb.WriteString(" LIMIT " + qb.ResultLimit)
 	}
 	sb.WriteString(";")
 
 	// build values
-	args = make([]interface{}, 0, 15)
+	args = make([]any, 0, 15)
 	for _, v := range qb.values {
 		if v.skip ||
 			!v.sqlstring ||
 			!(qb.CommandType == INSERT || qb.CommandType == UPDATE) ||
 			isNil(v.value) ||
-			v.forcenull {
+			v.forceNull {
 			continue
 		}
 		args = append(args, v.value)
@@ -669,17 +672,17 @@ func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
 		}
 	}
 	if qb.FilterFunc != nil {
-		fbs, fbargs := qb.FilterFunc(paramcnt, qb.dbEngineConstants.ParameterChar, qb.dbEngineConstants.ParameterInSequence)
+		fbs, fbargs := qb.FilterFunc(paramcnt, qb.dbEnConst.ParameterChar, qb.dbEnConst.ParameterInSequence)
 		if len(fbs) > 0 {
 			args = append(args, fbargs...)
 		}
 	}
 
 	query = sb.String()
-	if qb.interpolateTables {
+	if qb.intTbls {
 		sch := ``
-		if qb.referenceMode {
-			sch = qb.referenceModePrefix
+		if qb.refMode {
+			sch = qb.refModePfx
 			if !strings.HasSuffix(sch, "_") {
 				sch += "_"
 			}
@@ -706,28 +709,28 @@ func (qb *QueryBuilder) addColumn(name string, length int) int {
 	return len(qb.columns) - 1
 }
 
-func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue interface{}, matchToNull interface{}) *QueryBuilder {
+func (qb *QueryBuilder) setColumnValue(index int, value any, sqlString bool, defValue any, matchToNull any) *QueryBuilder {
 	for i, v := range qb.values {
 		if !strings.EqualFold(qb.columns[index].Name, v.column) {
 			continue
 		}
 		qb.values[i].sqlstring = sqlString
-		qb.values[i].defvalue = defValue
-		qb.values[i].matchtonull = matchToNull
+		qb.values[i].defValue = defValue
+		qb.values[i].matchToNull = matchToNull
 		qb.values[i].value = value
 		return qb
 	}
 	qb.values = append(qb.values, queryValue{
 		column:      qb.columns[index].Name,
 		sqlstring:   sqlString,
-		defvalue:    defValue,
-		matchtonull: matchToNull,
+		defValue:    defValue,
+		matchToNull: matchToNull,
 		value:       value,
 	})
 	return qb
 }
 
-func isNil(value interface{}) bool {
+func isNil(value any) bool {
 	if value == nil {
 		return true
 	}
@@ -747,16 +750,16 @@ func isNil(value interface{}) bool {
 }
 
 // converts the value to a basic interface as nil or non-nil
-func realValue(value interface{}) interface{} {
+func realValue(value any) any {
 	if isNil(value) {
 		return nil
 	}
-	var ret interface{}
+	var ret any
 	switch t := value.(type) {
-	case *interface{}:
+	case *any:
 		v2 := *t
 		if v2 != nil {
-			// we stop checking the *interface{} here
+			// we stop checking the *any here
 			switch t2 := v2.(type) {
 			default:
 				ret = getv(t2)
@@ -768,7 +771,7 @@ func realValue(value interface{}) interface{} {
 	return ret
 }
 
-func getv(input interface{}) (ret interface{}) {
+func getv(input any) (ret any) {
 	switch t := input.(type) {
 	case string, int, int8, int16, int32,
 		int64, float32, float64, time.Time, bool,
