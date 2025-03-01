@@ -17,7 +17,7 @@ import (
 	"time"
 
 	dhl "github.com/NarsilWorks-Inc/datahelperlite"
-	cfg "github.com/eaglebush/config"
+	di "github.com/eaglebush/datainfo"
 	ssd "github.com/shopspring/decimal"
 )
 
@@ -108,39 +108,22 @@ type QueryBuilder struct {
 	FilterFunc      func(offset int, char string, inSeq bool) ([]string, []any) // returns filter from outside functions like filterbuilder
 
 	// Private fields
-	refMode     bool              // In reference mode, queries are built with prepended reference mode prefix, if it was set.
-	refModePfx  string            // Prefix of the table in reference mode. Default is usually 'ref_' to indicate that the table must not allow users to insert and modify records
-	schema      string            // The schema of the table
-	skpNilWrCol bool              // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	dbEnConst   EngineConstants   // These constants are specific for database vendors
-	intTbls     bool              // When true, all table name with {} around it will be prepended with schema
-	order       []querySort       // Order by columns
-	group       []string          // Group by columns
-	columns     []QueryColumn     // Columns of the query
-	values      []queryValue      // Values of the columns
-	dbInfo      *cfg.DatabaseInfo // The database information from the configuration
+	skpNilWrCol bool            // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	dbEnConst   EngineConstants // These constants are specific for database vendors
+	intTbls     bool            // When true, all table name with {} around it will be prepended with schema
+	order       []querySort     // Order by columns
+	group       []string        // Group by columns
+	columns     []QueryColumn   // Columns of the query
+	values      []queryValue    // Values of the columns
+	dbInfo      *di.DataInfo    // The database information from the configuration
 }
 
 // New builds a new QueryBuilder
-//
-// The following are the default values when calling this method to create a new QueryBuilder:
-//
-//	Command: SELECT
-//	StringEnclosingChar:    `'`
-//	StringEscapeChar:       `\`
-//	ParameterChar:          `?`
-//	ReservedWordEscapeChar: `"`
-//	ResultLimitPosition:    REAR
-//	ResultLimit:            ""
-//	interpolateTables:      true
-//	skipNilWriteColumn:     false
 func New(options ...Option) *QueryBuilder {
 	n := QueryBuilder{
 		dbEnConst:   InitConstants(nil),
 		intTbls:     true,
 		skpNilWrCol: true,
-		refMode:     false,
-		refModePfx:  `ref`,
 		ResultLimit: "",
 	}
 	for _, o := range options {
@@ -149,6 +132,9 @@ func New(options ...Option) *QueryBuilder {
 		}
 		o(&n)
 	}
+	if n.dbInfo == nil {
+		panic("the DataInfo was not set")
+	}
 	return &n
 }
 
@@ -156,11 +142,8 @@ func New(options ...Option) *QueryBuilder {
 func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 	n := QueryBuilder{
 		dbEnConst:   builder.dbEnConst,
-		refMode:     builder.refMode,
-		refModePfx:  builder.refModePfx,
 		skpNilWrCol: builder.skpNilWrCol,
 		intTbls:     builder.intTbls,
-		schema:      builder.schema,
 		ResultLimit: "",
 	}
 	for _, o := range options {
@@ -173,7 +156,7 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 }
 
 // InitConstants return defaults of database engine constants, with database configuration if present
-func InitConstants(di *cfg.DatabaseInfo) EngineConstants {
+func InitConstants(di *di.DataInfo) EngineConstants {
 	ec := EngineConstants{
 		StringEnclosingChar:    `'`,
 		StringEscapeChar:       `\`,
@@ -183,19 +166,22 @@ func InitConstants(di *cfg.DatabaseInfo) EngineConstants {
 		ResultLimitPosition:    REAR,
 	}
 	if di != nil {
-		if di.StringEnclosingChar != nil {
+		if di.StringEnclosingChar != nil && *di.StringEnclosingChar != "" {
 			ec.StringEnclosingChar = *di.StringEnclosingChar
 		}
-		if di.StringEscapeChar != nil {
+		if di.StringEscapeChar != nil && *di.StringEscapeChar != "" {
 			ec.StringEscapeChar = *di.StringEscapeChar
 		}
-		if di.ParameterPlaceholder != "" {
-			ec.ParameterChar = di.ParameterPlaceholder
+		if di.ParameterPlaceHolder != nil && *di.ParameterPlaceHolder != "" {
+			ec.ParameterChar = *di.ParameterPlaceHolder
 		}
-		ec.ParameterInSequence = di.ParameterInSequence
-		if di.ReservedWordEscapeChar != nil {
+		if di.ReservedWordEscapeChar != nil && *di.ReservedWordEscapeChar != "" {
 			ec.ReservedWordEscapeChar = *di.ReservedWordEscapeChar
 		}
+		if di.ParameterInSequence != nil {
+			ec.ParameterInSequence = *di.ParameterInSequence
+		}
+
 	}
 	return ec
 }
@@ -211,7 +197,8 @@ func Source(name string) Option {
 // Schema sets the schema of a query builder
 func Schema(sch string) Option {
 	return func(q *QueryBuilder) error {
-		q.schema = sch
+		q.dbInfo.Schema = new(string)
+		*q.dbInfo.Schema = sch
 		return nil
 	}
 }
@@ -225,11 +212,10 @@ func Command(ct CommandType) Option {
 }
 
 // Config sets the database info
-func Config(di *cfg.DatabaseInfo) Option {
+func DatabaseInfo(di *di.DataInfo) Option {
 	return func(q *QueryBuilder) error {
 		q.dbInfo = di
 		InitConstants(di)
-		q.schema = di.Schema
 		return nil
 	}
 }
@@ -257,7 +243,8 @@ func Interpolate(value bool) Option {
 // Warning: If the interpolation is set to off, this property is ignored.
 func ReferenceMode(value bool) Option {
 	return func(q *QueryBuilder) error {
-		q.refMode = value
+		q.dbInfo.ReferenceMode = new(bool)
+		*q.dbInfo.ReferenceMode = value
 		return nil
 	}
 }
@@ -270,7 +257,8 @@ func ReferenceModePrefix(prefix string) Option {
 		if prefix == "" {
 			return nil
 		}
-		q.refModePfx = prefix
+		q.dbInfo.ReferenceModePrefix = new(string)
+		*q.dbInfo.ReferenceModePrefix = prefix
 		return nil
 	}
 }
@@ -680,16 +668,16 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 
 	query = sb.String()
 	if qb.intTbls {
-		sch := ``
-		if qb.refMode {
-			sch = qb.refModePfx
+		sch := ""
+		if qb.dbInfo.ReferenceMode != nil {
+			sch = *qb.dbInfo.ReferenceModePrefix
 			if !strings.HasSuffix(sch, "_") {
 				sch += "_"
 			}
 		}
 		// If there is a schema defined, it will prevail
-		if qb.schema != "" {
-			sch = qb.schema
+		if qb.dbInfo.Schema != nil && *qb.dbInfo.Schema != "" {
+			sch = *qb.dbInfo.Schema
 		}
 		// replace table names marked with {table}
 		query = InterpolateTable(query, sch)
