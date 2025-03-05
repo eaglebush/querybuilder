@@ -669,7 +669,7 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 	query = sb.String()
 	if qb.intTbls {
 		sch := ""
-		if qb.dbInfo.ReferenceMode != nil {
+		if qb.dbInfo.ReferenceMode != nil && *qb.dbInfo.ReferenceMode {
 			sch = *qb.dbInfo.ReferenceModePrefix
 			if !strings.HasSuffix(sch, "_") {
 				sch += "_"
