@@ -263,6 +263,14 @@ func ReferenceModePrefix(prefix string) Option {
 	}
 }
 
+// ResultLimit sets the result limit at initialization. ResultLimit can also be set at QueryBuilder ResultLimit field.
+func ResultLimit(value string) Option {
+	return func(q *QueryBuilder) error {
+		q.ResultLimit = value
+		return nil
+	}
+}
+
 // SkipNilWrite sets the condition to skip nil columns when writing to table
 func SkipNilWrite(skip bool) Option {
 	return func(q *QueryBuilder) error {
