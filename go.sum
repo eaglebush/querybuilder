@@ -4,8 +4,8 @@ github.com/eaglebush/config v0.0.0-20250318100634-fddc38b8d7d6 h1:JWdYTsUMfkbdmh
 github.com/eaglebush/config v0.0.0-20250318100634-fddc38b8d7d6/go.mod h1:UkGigEfx+L8E6iSiy130RcUrBl3SV9DPbisdV212wf8=
 github.com/eaglebush/datainfo v0.0.0-20250304235132-820af008ea0c h1:qKdPCyfIkwN5K4jxDzPDamwyz4Np1zD6Jqqy8GAPACk=
 github.com/eaglebush/datainfo v0.0.0-20250304235132-820af008ea0c/go.mod h1:0C7PVnqcTw/HMZlI6ihwKNYHFRA35DYFf96nqy2C31I=
-github.com/eaglebush/filterbuilder v0.0.0-20250403100111-f4172ccca64c h1:kLwYYHnEHCbXrRG1Yd8vbcZCAb+fEgUHaSL7BA+Kahk=
-github.com/eaglebush/filterbuilder v0.0.0-20250403100111-f4172ccca64c/go.mod h1:2Ex0Orjk53ewdzpH3GMyNW4KHdjtfWjPV00B/DSqNU4=
+github.com/eaglebush/filterbuilder v0.0.0-20250506022805-2b626bcdaeb9 h1:9WB1Txjm86pCIrqXsLe9HWlIwjkRMj8Bjm9QicmYwJ8=
+github.com/eaglebush/filterbuilder v0.0.0-20250506022805-2b626bcdaeb9/go.mod h1:2Ex0Orjk53ewdzpH3GMyNW4KHdjtfWjPV00B/DSqNU4=
 github.com/shopspring/decimal v1.4.0 h1:bxl37RwXBklmTi0C79JfXCEBD1cqqHt0bbgBAGFp81k=
 github.com/shopspring/decimal v1.4.0/go.mod h1:gawqmDU56v4yIKSwfBSFip1HdCCXN8/+DMd9qYNcwME=
 golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 h1:nDVHiLt8aIbd/VzvPWN6kSOPE7+F/fNFDSXLVYkE/Iw=
