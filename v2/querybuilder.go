@@ -215,7 +215,7 @@ func Command(ct CommandType) Option {
 func DatabaseInfo(di *di.DataInfo) Option {
 	return func(q *QueryBuilder) error {
 		q.dbInfo = di
-		InitConstants(di)
+		q.dbEnConst = InitConstants(di)
 		return nil
 	}
 }
