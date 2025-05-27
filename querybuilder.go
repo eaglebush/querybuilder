@@ -52,9 +52,9 @@ var (
 
 // ValueOption options for adding values
 type ValueOption struct {
-	SQLString   bool        // Sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
-	Default     interface{} // When set to non-nil, this is the default value when the value encounters a nil
-	MatchToNull interface{} // When the primary value matches with this value, the resulting value will be set to NULL
+	SQLString   bool // Sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
+	Default     any  // When set to non-nil, this is the default value when the value encounters a nil
+	MatchToNull any  // When the primary value matches with this value, the resulting value will be set to NULL
 }
 
 type QueryColumn struct {
@@ -63,19 +63,19 @@ type QueryColumn struct {
 }
 
 type queryValue struct {
-	column      string      // Name of the column
-	value       interface{} // value of the column
-	defvalue    interface{} // default value
-	matchtonull interface{} // when primary value is matched by this value, it will set the value to NULL
-	sqlstring   bool        // indicates if the value is an SQL string
-	skip        bool        // skip this query value
-	forcenull   bool        // forced to null
+	column      string // Name of the column
+	value       any    // value of the column
+	defvalue    any    // default value
+	matchtonull any    // when primary value is matched by this value, it will set the value to NULL
+	sqlstring   bool   // indicates if the value is an SQL string
+	skip        bool   // skip this query value
+	forcenull   bool   // forced to null
 }
 
 type queryFilter struct {
-	expression    string      // Column name or expression of the filter
-	value         interface{} // Value of the filter if the expression is a column name
-	containsvalue bool        // indicates that the filter has a separate value, not a filter expression
+	expression    string // Column name or expression of the filter
+	value         any    // Value of the filter if the expression is a column name
+	containsvalue bool   // indicates that the filter has a separate value, not a filter expression
 }
 
 type querySort struct {
@@ -85,25 +85,25 @@ type querySort struct {
 
 // QueryBuilder is a structure to build SQL queries
 type QueryBuilder struct {
-	TableName              string                                                              // Table or view name of the query
-	CommandType            Command                                                             // Command type
-	Columns                []QueryColumn                                                       // Columns of the query
-	Values                 []queryValue                                                        // Values of the columns
-	Order                  []querySort                                                         // Order by columns
-	Group                  []string                                                            // Group by columns
-	Filter                 []queryFilter                                                       // Query filter
-	StringEnclosingChar    string                                                              // Gets or sets the character that encloses a string in the query
-	StringEscapeChar       string                                                              // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
-	ReservedWordEscapeChar string                                                              // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
-	ParameterChar          string                                                              // Gets or sets the character placeholder for prepared statements
-	ParameterInSequence    bool                                                                // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
-	SkipNilWriteColumn     bool                                                                // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	ResultLimitPosition    Limit                                                               // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
-	ResultLimit            string                                                              // The value of the row limit
-	InterpolateTables      bool                                                                // When true, all table name with {} around it will be prepended with schema
-	Schema                 string                                                              // When the database info is not applied, this value will be used
-	ParameterOffset        int                                                                 // The parameter sequence offset
-	FilterFunc             func(offset int, char string, inSeq bool) ([]string, []interface{}) // returns filter from outside functions like filterbuilder
+	TableName              string                                                      // Table or view name of the query
+	CommandType            Command                                                     // Command type
+	Columns                []QueryColumn                                               // Columns of the query
+	Values                 []queryValue                                                // Values of the columns
+	Order                  []querySort                                                 // Order by columns
+	Group                  []string                                                    // Group by columns
+	Filter                 []queryFilter                                               // Query filter
+	StringEnclosingChar    string                                                      // Gets or sets the character that encloses a string in the query
+	StringEscapeChar       string                                                      // Gets or Sets the character that escapes a reserved character such as the character that encloses a s string
+	ReservedWordEscapeChar string                                                      // Reserved word escape	chars. For escaping with different opening and closing characters, just set to both. Example. `[]` for SQL server
+	ParameterChar          string                                                      // Gets or sets the character placeholder for prepared statements
+	ParameterInSequence    bool                                                        // Sets of the placeholders will be generated as a sequence of placeholder. Example, for SQL Server, @p0, @p1 @p2
+	SkipNilWriteColumn     bool                                                        // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	ResultLimitPosition    Limit                                                       // The position of the row limiting statement in a query. For SQL Server, the limiting is set at the SELECT clause such as TOP 1. Later versions of SQL server supports OFFSET and FETCH.
+	ResultLimit            string                                                      // The value of the row limit
+	InterpolateTables      bool                                                        // When true, all table name with {} around it will be prepended with schema
+	Schema                 string                                                      // When the database info is not applied, this value will be used
+	ParameterOffset        int                                                         // The parameter sequence offset
+	FilterFunc             func(offset int, char string, inSeq bool) ([]string, []any) // returns filter from outside functions like filterbuilder
 	dbInfo                 *cfg.DatabaseInfo
 }
 
@@ -194,11 +194,11 @@ func (qb *QueryBuilder) AddColumnFixed(Name string, Length int) *QueryBuilder {
 }
 
 // AddValue adds a value enclosed with string quotes when the CommandType is INSERT or UPDATE upon building
-func (qb *QueryBuilder) AddValue(Name string, Value interface{}, vo *ValueOption) *QueryBuilder {
+func (qb *QueryBuilder) AddValue(Name string, Value any, vo *ValueOption) *QueryBuilder {
 	var (
 		sqlstr      bool
-		defVal      interface{}
-		matchToNull interface{}
+		defVal      any
+		matchToNull any
 	)
 	sqlstr = true
 	defVal = nil
@@ -212,7 +212,7 @@ func (qb *QueryBuilder) AddValue(Name string, Value interface{}, vo *ValueOption
 }
 
 // SetColumnValue - sets the column value
-func (qb *QueryBuilder) SetColumnValue(Name string, Value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) SetColumnValue(Name string, Value any) *QueryBuilder {
 	if qb.CommandType == DELETE {
 		return qb
 	}
@@ -234,7 +234,7 @@ func (qb *QueryBuilder) Escape(Value string) string {
 }
 
 // AddFilter adds a filter with value.
-func (qb *QueryBuilder) AddFilter(Column string, Value interface{}) *QueryBuilder {
+func (qb *QueryBuilder) AddFilter(Column string, Value any) *QueryBuilder {
 	qb.Filter = append(qb.Filter, queryFilter{
 		expression: Column,
 		value:      Value,
@@ -265,11 +265,11 @@ func (qb *QueryBuilder) AddGroup(Group string) *QueryBuilder {
 }
 
 // Build an SQL string with corresponding values
-func (qb *QueryBuilder) Build() (query string, args []interface{}, err error) {
+func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 
 	var sb strings.Builder
 
-	args = make([]interface{}, 0)
+	args = make([]any, 0)
 
 	if qb.TableName == "" {
 		return "", nil, ErrNoTableSpecified
@@ -535,7 +535,7 @@ func (qb *QueryBuilder) addColumn(name string, length int) int {
 	return len(qb.Columns) - 1
 }
 
-func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString bool, defValue, matchToNull interface{}) *QueryBuilder {
+func (qb *QueryBuilder) setColumnValue(index int, value any, sqlString bool, defValue, matchToNull any) *QueryBuilder {
 	for i, v := range qb.Values {
 		if !strings.EqualFold(qb.Columns[index].Name, v.column) {
 			continue
@@ -556,83 +556,182 @@ func (qb *QueryBuilder) setColumnValue(index int, value interface{}, sqlString b
 	return qb
 }
 
-func isNil(value interface{}) bool {
+// // Original isNil code
+// func isNil(value any) bool {
+// 	if value == nil {
+// 		return true
+// 	}
+// 	if t := reflect.TypeOf(value); t == nil {
+// 		return true
+// 	}
+// 	if v := reflect.ValueOf(value); v.IsZero() {
+// 		if k := v.Kind(); k == reflect.Map ||
+// 			k == reflect.Func ||
+// 			k == reflect.Ptr ||
+// 			k == reflect.Slice ||
+// 			k == reflect.Interface {
+// 			return v.IsNil()
+// 		}
+// 	}
+// 	return false
+// }
+
+// ChatGPT optimized isNil
+func isNil(value any) bool {
 	if value == nil {
 		return true
 	}
-	if t := reflect.TypeOf(value); t == nil {
-		return true
-	}
-	if v := reflect.ValueOf(value); v.IsZero() {
-		if k := v.Kind(); k == reflect.Map ||
-			k == reflect.Func ||
-			k == reflect.Ptr ||
-			k == reflect.Slice ||
-			k == reflect.Interface {
-			return v.IsNil()
-		}
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return v.IsNil()
 	}
 	return false
 }
 
+// // Original realvalue code
+// // converts the value to a basic interface as nil or non-nil
+// func realvalue(value any) any {
+// 	if isNil(value) {
+// 		return nil
+// 	}
+// 	var ret any
+// 	switch t := value.(type) {
+// 	case *any:
+// 		v2 := *t
+// 		if v2 != nil {
+// 			// we stop checking the *any here
+// 			switch t2 := v2.(type) {
+// 			default:
+// 				ret = getv(t2)
+// 			}
+// 		}
+// 	default:
+// 		ret = getv(t)
+// 	}
+// 	return ret
+// }
+
+// ChatGPT refactored
 // converts the value to a basic interface as nil or non-nil
-func realvalue(value interface{}) interface{} {
+func realvalue(value any) any {
 	if isNil(value) {
 		return nil
 	}
-	var ret interface{}
-	switch t := value.(type) {
-	case *interface{}:
-		v2 := *t
-		if v2 != nil {
-			// we stop checking the *interface{} here
-			switch t2 := v2.(type) {
-			default:
-				ret = getv(t2)
-			}
+
+	// Unwrap pointer to interface if applicable
+	if ptr, ok := value.(*any); ok && ptr != nil {
+		if v2 := *ptr; v2 != nil {
+			return getv(v2)
 		}
-	default:
-		ret = getv(t)
+		return nil
 	}
-	return ret
+
+	return getv(value)
 }
 
-func getv(input interface{}) (ret interface{}) {
+// // Original code
+// func getv(input any) (ret any) {
+// 	switch t := input.(type) {
+// 	case string, int, int8, int16, int32,
+// 		int64, float32, float64, time.Time, bool,
+// 		byte, []byte, ssd.Decimal:
+// 		ret = t
+// 	case *string:
+// 		ret = *t
+// 	case *int:
+// 		ret = *t
+// 	case *int8:
+// 		ret = *t
+// 	case *int16:
+// 		ret = *t
+// 	case *int32:
+// 		ret = *t
+// 	case *int64:
+// 		ret = *t
+// 	case *float32:
+// 		ret = *t
+// 	case *float64:
+// 		ret = *t
+// 	case *time.Time:
+// 		ret = *t
+// 	case *bool:
+// 		ret = *t
+// 	case *byte:
+// 		ret = *t
+// 	case *[]byte:
+// 		ret = *t
+// 	case *ssd.Decimal:
+// 		ret = *t
+// 	case dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
+// 		ret = t
+// 	}
+// 	return
+// }
+
+// ChatGPT refactored code
+func getv(input any) any {
 	switch t := input.(type) {
 	case string, int, int8, int16, int32,
 		int64, float32, float64, time.Time, bool,
-		byte, []byte, ssd.Decimal:
-		ret = t
+		byte, []byte, ssd.Decimal,
+		dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
+		return t
 	case *string:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int8:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int16:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int32:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int64:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *float32:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *float64:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *time.Time:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *bool:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *byte:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *[]byte:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *ssd.Decimal:
-		ret = *t
-	case dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
-		ret = t
+		if t != nil {
+			return *t
+		}
 	}
-	return
+	return nil
 }
 
 // ParseReserveWordsChars always returns two-element array of opening and closing escape chars

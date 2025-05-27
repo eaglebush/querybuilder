@@ -10,6 +10,7 @@ package querybuilder
 
 import (
 	"errors"
+	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -126,15 +127,23 @@ func New(options ...Option) *QueryBuilder {
 		skpNilWrCol: true,
 		ResultLimit: "",
 	}
+	if n.dbInfo == nil {
+		n.dbInfo = di.New()
+		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
+		n.dbInfo.StringEscapeChar = &n.dbEnConst.StringEscapeChar
+		n.dbInfo.ParameterPlaceHolder = &n.dbEnConst.ParameterChar
+		n.dbInfo.ReservedWordEscapeChar = &n.dbEnConst.ReservedWordEscapeChar
+		n.dbInfo.ParameterInSequence = &n.dbEnConst.ParameterInSequence
+		n.dbInfo.ResultLimitPosition = di.LimitPosition(n.dbEnConst.ResultLimitPosition)
+		log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
+	}
 	for _, o := range options {
 		if o == nil {
 			continue
 		}
 		o(&n)
 	}
-	if n.dbInfo == nil {
-		panic("the DataInfo was not set")
-	}
+
 	return &n
 }
 
@@ -145,6 +154,16 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 		skpNilWrCol: builder.skpNilWrCol,
 		intTbls:     builder.intTbls,
 		ResultLimit: "",
+	}
+	if n.dbInfo == nil {
+		n.dbInfo = di.New()
+		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
+		n.dbInfo.StringEscapeChar = &n.dbEnConst.StringEscapeChar
+		n.dbInfo.ParameterPlaceHolder = &n.dbEnConst.ParameterChar
+		n.dbInfo.ReservedWordEscapeChar = &n.dbEnConst.ReservedWordEscapeChar
+		n.dbInfo.ParameterInSequence = &n.dbEnConst.ParameterInSequence
+		n.dbInfo.ResultLimitPosition = di.LimitPosition(n.dbEnConst.ResultLimitPosition)
+		log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
 	}
 	for _, o := range options {
 		if o == nil {
@@ -726,83 +745,175 @@ func (qb *QueryBuilder) setColumnValue(index int, value any, sqlString bool, def
 	return qb
 }
 
-func isNil(value any) bool {
-	if value == nil {
-		return true
-	}
-	if t := reflect.TypeOf(value); t == nil {
-		return true
-	}
-	if v := reflect.ValueOf(value); v.IsZero() {
-		if k := v.Kind(); k == reflect.Map ||
-			k == reflect.Func ||
-			k == reflect.Ptr ||
-			k == reflect.Slice ||
-			k == reflect.Interface {
-			return v.IsNil()
-		}
-	}
-	return false
-}
+// func isNil(value any) bool {
+// 	if value == nil {
+// 		return true
+// 	}
+// 	if t := reflect.TypeOf(value); t == nil {
+// 		return true
+// 	}
+// 	if v := reflect.ValueOf(value); v.IsZero() {
+// 		if k := v.Kind(); k == reflect.Map ||
+// 			k == reflect.Func ||
+// 			k == reflect.Ptr ||
+// 			k == reflect.Slice ||
+// 			k == reflect.Interface {
+// 			return v.IsNil()
+// 		}
+// 	}
+// 	return false
+// }
 
-// converts the value to a basic interface as nil or non-nil
+// // converts the value to a basic interface as nil or non-nil
+// func realValue(value any) any {
+// 	if isNil(value) {
+// 		return nil
+// 	}
+// 	var ret any
+// 	switch t := value.(type) {
+// 	case *any:
+// 		v2 := *t
+// 		if v2 != nil {
+// 			// we stop checking the *any here
+// 			switch t2 := v2.(type) {
+// 			default:
+// 				ret = getv(t2)
+// 			}
+// 		}
+// 	default:
+// 		ret = getv(t)
+// 	}
+// 	return ret
+// }
+
+// func getv(input any) (ret any) {
+// 	switch t := input.(type) {
+// 	case string, int, int8, int16, int32,
+// 		int64, float32, float64, time.Time, bool,
+// 		byte, []byte, ssd.Decimal:
+// 		ret = t
+// 	case *string:
+// 		ret = *t
+// 	case *int:
+// 		ret = *t
+// 	case *int8:
+// 		ret = *t
+// 	case *int16:
+// 		ret = *t
+// 	case *int32:
+// 		ret = *t
+// 	case *int64:
+// 		ret = *t
+// 	case *float32:
+// 		ret = *t
+// 	case *float64:
+// 		ret = *t
+// 	case *time.Time:
+// 		ret = *t
+// 	case *bool:
+// 		ret = *t
+// 	case *byte:
+// 		ret = *t
+// 	case *[]byte:
+// 		ret = *t
+// 	case *ssd.Decimal:
+// 		ret = *t
+// 	case dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
+// 		ret = t
+// 	}
+// 	return
+// }
+
 func realValue(value any) any {
 	if isNil(value) {
 		return nil
 	}
-	var ret any
-	switch t := value.(type) {
-	case *any:
-		v2 := *t
-		if v2 != nil {
-			// we stop checking the *any here
-			switch t2 := v2.(type) {
-			default:
-				ret = getv(t2)
-			}
+
+	// Unwrap pointer to interface if applicable
+	if ptr, ok := value.(*any); ok && ptr != nil {
+		if v2 := *ptr; v2 != nil {
+			return getv(v2)
 		}
-	default:
-		ret = getv(t)
+		return nil
 	}
-	return ret
+
+	return getv(value)
 }
 
-func getv(input any) (ret any) {
+func isNil(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return v.IsNil()
+	}
+	return false
+}
+
+func getv(input any) any {
 	switch t := input.(type) {
 	case string, int, int8, int16, int32,
 		int64, float32, float64, time.Time, bool,
-		byte, []byte, ssd.Decimal:
-		ret = t
+		byte, []byte, ssd.Decimal,
+		dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
+		return t
 	case *string:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int8:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int16:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int32:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *int64:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *float32:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *float64:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *time.Time:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *bool:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *byte:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *[]byte:
-		ret = *t
+		if t != nil {
+			return *t
+		}
 	case *ssd.Decimal:
-		ret = *t
-	case dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
-		ret = t
+		if t != nil {
+			return *t
+		}
 	}
-	return
+	return nil
 }
 
 // ParseReserveWordsChars always returns two-element array of opening and closing escape chars
