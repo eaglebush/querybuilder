@@ -127,6 +127,12 @@ func New(options ...Option) *QueryBuilder {
 		skpNilWrCol: true,
 		ResultLimit: "",
 	}
+	for _, o := range options {
+		if o == nil {
+			continue
+		}
+		o(&n)
+	}
 	if n.dbInfo == nil {
 		n.dbInfo = di.New()
 		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
@@ -136,12 +142,6 @@ func New(options ...Option) *QueryBuilder {
 		n.dbInfo.ParameterInSequence = &n.dbEnConst.ParameterInSequence
 		n.dbInfo.ResultLimitPosition = di.LimitPosition(n.dbEnConst.ResultLimitPosition)
 		log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
-	}
-	for _, o := range options {
-		if o == nil {
-			continue
-		}
-		o(&n)
 	}
 
 	return &n
@@ -155,6 +155,12 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 		intTbls:     builder.intTbls,
 		ResultLimit: "",
 	}
+	for _, o := range options {
+		if o == nil {
+			continue
+		}
+		o(&n)
+	}
 	if n.dbInfo == nil {
 		n.dbInfo = di.New()
 		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
@@ -164,12 +170,6 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 		n.dbInfo.ParameterInSequence = &n.dbEnConst.ParameterInSequence
 		n.dbInfo.ResultLimitPosition = di.LimitPosition(n.dbEnConst.ResultLimitPosition)
 		log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
-	}
-	for _, o := range options {
-		if o == nil {
-			continue
-		}
-		o(&n)
 	}
 	return &n
 }
@@ -216,6 +216,16 @@ func Source(name string) Option {
 // Schema sets the schema of a query builder
 func Schema(sch string) Option {
 	return func(q *QueryBuilder) error {
+		if q.dbInfo == nil {
+			q.dbInfo = di.New()
+			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
+			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
+			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
+			q.dbInfo.ReservedWordEscapeChar = &q.dbEnConst.ReservedWordEscapeChar
+			q.dbInfo.ParameterInSequence = &q.dbEnConst.ParameterInSequence
+			q.dbInfo.ResultLimitPosition = di.LimitPosition(q.dbEnConst.ResultLimitPosition)
+			log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
+		}
 		q.dbInfo.Schema = new(string)
 		*q.dbInfo.Schema = sch
 		return nil
@@ -231,10 +241,10 @@ func Command(ct CommandType) Option {
 }
 
 // Config sets the database info
-func DatabaseInfo(di *di.DataInfo) Option {
+func DatabaseInfo(dnf *di.DataInfo) Option {
 	return func(q *QueryBuilder) error {
-		q.dbInfo = di
-		q.dbEnConst = InitConstants(di)
+		q.dbInfo = dnf
+		q.dbEnConst = InitConstants(dnf)
 		return nil
 	}
 }
@@ -262,6 +272,16 @@ func Interpolate(value bool) Option {
 // Warning: If the interpolation is set to off, this property is ignored.
 func ReferenceMode(value bool) Option {
 	return func(q *QueryBuilder) error {
+		if q.dbInfo == nil {
+			q.dbInfo = di.New()
+			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
+			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
+			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
+			q.dbInfo.ReservedWordEscapeChar = &q.dbEnConst.ReservedWordEscapeChar
+			q.dbInfo.ParameterInSequence = &q.dbEnConst.ParameterInSequence
+			q.dbInfo.ResultLimitPosition = di.LimitPosition(q.dbEnConst.ResultLimitPosition)
+			log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
+		}
 		q.dbInfo.ReferenceMode = new(bool)
 		*q.dbInfo.ReferenceMode = value
 		return nil
@@ -275,6 +295,16 @@ func ReferenceModePrefix(prefix string) Option {
 	return func(q *QueryBuilder) error {
 		if prefix == "" {
 			return nil
+		}
+		if q.dbInfo == nil {
+			q.dbInfo = di.New()
+			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
+			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
+			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
+			q.dbInfo.ReservedWordEscapeChar = &q.dbEnConst.ReservedWordEscapeChar
+			q.dbInfo.ParameterInSequence = &q.dbEnConst.ParameterInSequence
+			q.dbInfo.ResultLimitPosition = di.LimitPosition(q.dbEnConst.ResultLimitPosition)
+			log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
 		}
 		q.dbInfo.ReferenceModePrefix = new(string)
 		*q.dbInfo.ReferenceModePrefix = prefix
