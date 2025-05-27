@@ -1,11 +1,9 @@
-github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20250318101111-51aea646d94a h1:3D6z5XyxTCcZStNIfNk022GGIsur3THaqERGZ6bDEp0=
-github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20250318101111-51aea646d94a/go.mod h1:5qJ/+iN8NWlxHnsIaZL+Ox+Et/ecC0w7fhfJtU2jFkw=
-github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20250525022800-94eb21a198e7 h1:NIF++rTnwApgEIuBXxNyB37OIu1H3XBv5rpj+e+s6SA=
-github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20250525022800-94eb21a198e7/go.mod h1:KKPtHzb/dKbuuutO02owsLRL2D8VdmUAEJ3OiIuHcL8=
+github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20250525023210-ddf754698b81 h1:HvIM42UmXe7RPHa50luoQu/4YJydVxN8rq5gI3l5zDI=
+github.com/NarsilWorks-Inc/datahelperlite v0.0.0-20250525023210-ddf754698b81/go.mod h1:/XrsNeM2QB3XTxdMyydtUjbaukBpDotsA9N1q/HmwrQ=
 github.com/eaglebush/config v0.0.0-20250513100201-058a481fd9e5 h1:jwvn5c+b6An6vWeYixm5mqxSK/r6WkVrouWJMwkNNs0=
 github.com/eaglebush/config v0.0.0-20250513100201-058a481fd9e5/go.mod h1:UkGigEfx+L8E6iSiy130RcUrBl3SV9DPbisdV212wf8=
-github.com/eaglebush/datainfo v0.0.0-20250304235132-820af008ea0c h1:qKdPCyfIkwN5K4jxDzPDamwyz4Np1zD6Jqqy8GAPACk=
-github.com/eaglebush/datainfo v0.0.0-20250304235132-820af008ea0c/go.mod h1:0C7PVnqcTw/HMZlI6ihwKNYHFRA35DYFf96nqy2C31I=
+github.com/eaglebush/datainfo v0.0.0-20250527032652-fddc6e5f9a72 h1:TUWh3+fxGiUZvwgzkMvE5ZyrsPxEs+PWUIelVbq9Pgw=
+github.com/eaglebush/datainfo v0.0.0-20250527032652-fddc6e5f9a72/go.mod h1:X+/1ax+ZMKkVl+E5BDu+SE2TXxNYsF7OaO0kDzFyYcE=
 github.com/eaglebush/filterbuilder v0.0.0-20250523011111-37d7ad52f236 h1:IvNPuPdnzx5zCggTKn08+r/jIvBFNiDennV3dh0WNmM=
 github.com/eaglebush/filterbuilder v0.0.0-20250523011111-37d7ad52f236/go.mod h1:2Ex0Orjk53ewdzpH3GMyNW4KHdjtfWjPV00B/DSqNU4=
 github.com/shopspring/decimal v1.4.0 h1:bxl37RwXBklmTi0C79JfXCEBD1cqqHt0bbgBAGFp81k=

@@ -181,7 +181,7 @@ func InitConstants(di *di.DataInfo) EngineConstants {
 		if di.ParameterInSequence != nil {
 			ec.ParameterInSequence = *di.ParameterInSequence
 		}
-
+		ec.ResultLimitPosition = Limit(di.ResultLimitPosition)
 	}
 	return ec
 }
