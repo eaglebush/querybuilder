@@ -87,6 +87,7 @@ type querySort struct {
 type QueryBuilder struct {
 	TableName              string                                                      // Table or view name of the query
 	CommandType            Command                                                     // Command type
+	Distinct               bool                                                        // Sets the option to return distinct values
 	Columns                []QueryColumn                                               // Columns of the query
 	Values                 []queryValue                                                // Values of the columns
 	Order                  []querySort                                                 // Order by columns
@@ -297,6 +298,9 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 	switch qb.CommandType {
 	case SELECT:
 		sb.WriteString("SELECT ")
+		if qb.Distinct {
+			sb.WriteString("DISTINCT ")
+		}
 		if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == FRONT {
 			sb.WriteString(" TOP " + qb.ResultLimit + " ")
 		}

@@ -117,6 +117,7 @@ type QueryBuilder struct {
 	columns     []QueryColumn   // Columns of the query
 	values      []queryValue    // Values of the columns
 	dbInfo      *di.DataInfo    // The database information from the configuration
+	distinct    bool            // The output should return distinct values
 }
 
 // New builds a new QueryBuilder
@@ -203,6 +204,14 @@ func InitConstants(di *di.DataInfo) EngineConstants {
 		ec.ResultLimitPosition = Limit(di.ResultLimitPosition)
 	}
 	return ec
+}
+
+// Distinct sets the option to return distinct values
+func Distinct(yes bool) Option {
+	return func(q *QueryBuilder) error {
+		q.distinct = yes
+		return nil
+	}
 }
 
 // Source sets the table, view or stored procedure name
@@ -520,6 +529,9 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 	switch qb.CommandType {
 	case SELECT:
 		sb.WriteString("SELECT ")
+		if qb.distinct {
+			sb.WriteString("DISTINCT ")
+		}
 		if len(qb.ResultLimit) > 0 && qb.dbEnConst.ResultLimitPosition == FRONT {
 			sb.WriteString(" TOP " + qb.ResultLimit + " ")
 		}
