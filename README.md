@@ -40,11 +40,11 @@ Once configured, you call:
 
 Use Go modules:
 
-    go get github.com/eaglebush/querybuilder/
+    go get github.com/eaglebush/querybuilder
 
 Then import:
 
-    import qb "github.com/eaglebush/querybuilder/"
+    import qb "github.com/eaglebush/querybuilder"
 
 ---
 
@@ -56,7 +56,7 @@ Then import:
     import (
         "database/sql"
 
-        qb  "github.com/eaglebush/querybuilder/"
+        qb  "github.com/eaglebush/querybuilder"
         cfg "github.com/eaglebush/config"
     )
 
@@ -99,7 +99,7 @@ Then import:
 ```
 
 The values are passed as parameters (depending on SQLString), and the generated SQL looks like:
-```go
+```sql
     INSERT INTO users (UserName, IsActive) VALUES (?, ?);
 ```
 ### UPDATE
