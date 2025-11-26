@@ -452,9 +452,8 @@ func (qb *QueryBuilder) SetColumnValue(name string, value any) *QueryBuilder {
 	}
 	for i, v := range qb.values {
 		if strings.EqualFold(name, v.column) {
-			continue
+			return qb.setColumnValue(i, value, true, nil, nil)
 		}
-		return qb.setColumnValue(i, value, true, nil, nil)
 	}
 	return qb
 }
@@ -752,6 +751,35 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 		query = InterpolateTable(query, sch)
 	}
 	qb.ParameterOffset = paramcnt
+	return
+}
+
+// BuildWithCount builds the main SQL and a COUNT(*) SQL that wraps the SELECT.
+// It only works for SELECT commands.
+func (qb *QueryBuilder) BuildWithCount() (
+	query string,
+	args []any,
+	countQuery string,
+	err error,
+) {
+	if qb.CommandType != SELECT {
+		return "", nil, "", errors.New("BuildWithCount is only valid for SELECT queries")
+	}
+
+	// Build the main query once
+	query, args, err = qb.Build()
+	if err != nil {
+		return
+	}
+
+	// Strip trailing ';' and spaces
+	inner := strings.TrimSpace(query)
+	inner = strings.TrimSuffix(inner, ";")
+
+	// Wrap the original SELECT as a subquery
+	// This preserves all columns, expressions, parameters, DISTINCT, GROUP BY, etc.
+	countQuery = "SELECT COUNT(*) FROM (" + inner + ") AS _qb_count;"
+
 	return
 }
 
