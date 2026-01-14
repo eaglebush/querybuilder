@@ -184,8 +184,8 @@ func TestBuildDataHelperInsert(t *testing.T) {
 			ParameterInSequence: true,
 			ParameterChar:       "@p",
 		}),
-		//InsertReturn("SELECT SCOPE_IDENTITY()", false),
-		InsertReturn("RETURNING id", true),
+		InsertReturn("SELECT SCOPE_IDENTITY()", false),
+		//InsertReturn("RETURNING id", true),
 	)
 
 	q.AddValue("UserKey", 5, nil)
