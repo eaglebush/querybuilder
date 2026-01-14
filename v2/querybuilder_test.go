@@ -183,7 +183,10 @@ func TestBuildDataHelperInsert(t *testing.T) {
 		Constants(EngineConstants{
 			ParameterInSequence: true,
 			ParameterChar:       "@p",
-		}))
+		}),
+		//InsertReturn("SELECT SCOPE_IDENTITY()", false),
+		InsertReturn("RETURNING id", true),
+	)
 
 	q.AddValue("UserKey", 5, nil)
 	q.AddValue("UserName", "eaglebush", nil)

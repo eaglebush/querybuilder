@@ -52,17 +52,6 @@ var (
 	ErrNoColumnSpecified = errors.New("no columns were specified")
 )
 
-// Option function for QueryBuilder
-type Option func(q *QueryBuilder) error
-type ValueOption func(vo *ValueCompareOption) error
-
-// ValueCompareOption options for adding values
-type ValueCompareOption struct {
-	SQLString   bool // Sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
-	Default     any  // When set to non-nil, this is the default value when the value encounters a nil
-	MatchToNull any  // When the primary value matches with this value, the resulting value will be set to NULL
-}
-
 type QueryColumn struct {
 	Name   string // name of the column
 	Length int    // length of the column
@@ -109,15 +98,18 @@ type QueryBuilder struct {
 	FilterFunc      func(offset int, char string, inSeq bool) ([]string, []any) // returns filter from outside functions like filterbuilder
 
 	// Private fields
-	skpNilWrCol bool            // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
-	dbEnConst   EngineConstants // These constants are specific for database vendors
-	intTbls     bool            // When true, all table name with {} around it will be prepended with schema
-	order       []querySort     // Order by columns
-	group       []string        // Group by columns
-	columns     []QueryColumn   // Columns of the query
-	values      []queryValue    // Values of the columns
-	dbInfo      *di.DataInfo    // The database information from the configuration
-	distinct    bool            // The output should return distinct values
+	skpNilWrCol      bool            // Sets the condition that the Nil columns in an INSERT or UPDATE command would be skipped, instead of being set.
+	dbEnConst        EngineConstants // These constants are specific for database vendors
+	intTbls          bool            // When true, all table name with {} around it will be prepended with schema
+	order            []querySort     // Order by columns
+	group            []string        // Group by columns
+	columns          []QueryColumn   // Columns of the query
+	values           []queryValue    // Values of the columns
+	dbInfo           *di.DataInfo    // The database information from the configuration
+	distinct         bool            // The output should return distinct values
+	insertRetn       bool            // Return identity/auto-increment value for INSERT command
+	insertRetnInline bool            // The SQL statement is inline; no statement separation is required for INSERT command
+	insertRetnSql    string          // Return identity/auto-increment query for INSERT command. Might include column name to return for some engines
 }
 
 // New builds a new QueryBuilder
@@ -204,161 +196,6 @@ func InitConstants(di *di.DataInfo) EngineConstants {
 		ec.ResultLimitPosition = Limit(di.ResultLimitPosition)
 	}
 	return ec
-}
-
-// Distinct sets the option to return distinct values
-func Distinct(yes bool) Option {
-	return func(q *QueryBuilder) error {
-		q.distinct = yes
-		return nil
-	}
-}
-
-// Source sets the table, view or stored procedure name
-func Source(name string) Option {
-	return func(q *QueryBuilder) error {
-		q.Source = name
-		return nil
-	}
-}
-
-// Schema sets the schema of a query builder
-func Schema(sch string) Option {
-	return func(q *QueryBuilder) error {
-		if q.dbInfo == nil {
-			q.dbInfo = di.New()
-			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
-			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
-			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
-			q.dbInfo.ReservedWordEscapeChar = &q.dbEnConst.ReservedWordEscapeChar
-			q.dbInfo.ParameterInSequence = &q.dbEnConst.ParameterInSequence
-			q.dbInfo.ResultLimitPosition = di.LimitPosition(q.dbEnConst.ResultLimitPosition)
-			log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
-		}
-		q.dbInfo.Schema = new(string)
-		*q.dbInfo.Schema = sch
-		return nil
-	}
-}
-
-// Command sets the command of a query builder
-func Command(ct CommandType) Option {
-	return func(q *QueryBuilder) error {
-		q.CommandType = ct
-		return nil
-	}
-}
-
-// Config sets the database info
-func DatabaseInfo(dnf *di.DataInfo) Option {
-	return func(q *QueryBuilder) error {
-		q.dbInfo = dnf
-		q.dbEnConst = InitConstants(dnf)
-		return nil
-	}
-}
-
-// Constants are builder settings that follows the database engine settings.
-func Constants(ec EngineConstants) Option {
-	return func(q *QueryBuilder) error {
-		q.dbEnConst = ec
-		return nil
-	}
-}
-
-// Interpolate converts all table name with {} around it will be prepended with schema and reference code prefix
-func Interpolate(value bool) Option {
-	return func(q *QueryBuilder) error {
-		q.intTbls = value
-		return nil
-	}
-}
-
-// ReferenceMode enables the builder to generate query that adds a `ref` prefix to table names after the schema.
-//
-// This can be used in instances that the database object is just a reference populated by event source rather than user interaction.
-//
-// Warning: If the interpolation is set to off, this property is ignored.
-func ReferenceMode(value bool) Option {
-	return func(q *QueryBuilder) error {
-		if q.dbInfo == nil {
-			q.dbInfo = di.New()
-			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
-			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
-			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
-			q.dbInfo.ReservedWordEscapeChar = &q.dbEnConst.ReservedWordEscapeChar
-			q.dbInfo.ParameterInSequence = &q.dbEnConst.ParameterInSequence
-			q.dbInfo.ResultLimitPosition = di.LimitPosition(q.dbEnConst.ResultLimitPosition)
-			log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
-		}
-		q.dbInfo.ReferenceMode = new(bool)
-		*q.dbInfo.ReferenceMode = value
-		return nil
-	}
-}
-
-// ReferenceModePrefix changes the reference prefix to add to database object names when set in ReferenceMode
-//
-// Warning: If the interpolation is set to off, this property is ignored.
-func ReferenceModePrefix(prefix string) Option {
-	return func(q *QueryBuilder) error {
-		if prefix == "" {
-			return nil
-		}
-		if q.dbInfo == nil {
-			q.dbInfo = di.New()
-			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
-			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
-			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
-			q.dbInfo.ReservedWordEscapeChar = &q.dbEnConst.ReservedWordEscapeChar
-			q.dbInfo.ParameterInSequence = &q.dbEnConst.ParameterInSequence
-			q.dbInfo.ResultLimitPosition = di.LimitPosition(q.dbEnConst.ResultLimitPosition)
-			log.Println("[QueryBuilder] Warning: DataInfo was not explicitly set. Using default with DBEngineConstants default values.")
-		}
-		q.dbInfo.ReferenceModePrefix = new(string)
-		*q.dbInfo.ReferenceModePrefix = prefix
-		return nil
-	}
-}
-
-// ResultLimit sets the result limit at initialization. ResultLimit can also be set at QueryBuilder ResultLimit field.
-func ResultLimit(value string) Option {
-	return func(q *QueryBuilder) error {
-		q.ResultLimit = value
-		return nil
-	}
-}
-
-// SkipNilWrite sets the condition to skip nil columns when writing to table
-func SkipNilWrite(skip bool) Option {
-	return func(q *QueryBuilder) error {
-		q.skpNilWrCol = skip
-		return nil
-	}
-}
-
-// IsSqlString sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
-func IsSqlString(indeed bool) ValueOption {
-	return func(vco *ValueCompareOption) error {
-		vco.SQLString = indeed
-		return nil
-	}
-}
-
-// Default is the default value of the column when the value encounters a nil
-func Default(value any) ValueOption {
-	return func(vco *ValueCompareOption) error {
-		vco.Default = value
-		return nil
-	}
-}
-
-// MatchToNull is the condition the primary value matches with this value, the resulting value will be set to NULL
-func MatchToNull(match any) ValueOption {
-	return func(vco *ValueCompareOption) error {
-		vco.MatchToNull = match
-		return nil
-	}
 }
 
 // NewSelect is a shortcut builder for Select queries
@@ -707,6 +544,15 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 	if len(qb.ResultLimit) > 0 && qb.dbEnConst.ResultLimitPosition == REAR {
 		sb.WriteString(" LIMIT " + qb.ResultLimit)
 	}
+
+	// for insert that requires return id for auto incremented columns
+	if qb.insertRetn && qb.CommandType == INSERT {
+		if !qb.insertRetnInline {
+			sb.WriteString(";\n")
+		}
+		sb.WriteString(" " + qb.insertRetnSql)
+	}
+
 	sb.WriteString(";")
 
 	// build values
