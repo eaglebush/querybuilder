@@ -9,6 +9,7 @@
 package querybuilder
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"reflect"
@@ -763,7 +764,7 @@ func isNil(value any) bool {
 
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return v.IsNil()
 	}
 	return false
@@ -774,7 +775,8 @@ func getv(input any) any {
 	case string, int, int8, int16, int32,
 		int64, float32, float64, time.Time, bool,
 		byte, []byte, ssd.Decimal,
-		dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax:
+		dhl.VarChar, dhl.VarCharMax, dhl.NVarCharMax,
+		json.RawMessage:
 		return t
 	case *string:
 		if t != nil {
@@ -825,6 +827,10 @@ func getv(input any) any {
 			return *t
 		}
 	case *ssd.Decimal:
+		if t != nil {
+			return *t
+		}
+	case *json.RawMessage:
 		if t != nil {
 			return *t
 		}
