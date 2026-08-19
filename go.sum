@@ -1,7 +1,11 @@
 github.com/NarsilWorks-Inc/datahelperlite v0.1.0 h1:8ZPOzqighH0qrr0VepYlZr2Y5rRLmYKGdEFHAw84wN0=
 github.com/NarsilWorks-Inc/datahelperlite v0.1.0/go.mod h1:/Tvw7rZy3tmo2cEtQ5FZJDiXspVtGcpQfPQxtEQbbUc=
+github.com/NarsilWorks-Inc/datahelperlite v0.1.33 h1:i/mgtAEeI4EwHJYwKWeHYblQce7wSZl/YU7svHNWpVQ=
+github.com/NarsilWorks-Inc/datahelperlite v0.1.33/go.mod h1:sfM04ujPrmiRgOZ33kuOu24/LhlXvKEjQ3te1na9WqA=
 github.com/eaglebush/config v0.1.0 h1:U06f6f40qmPOy8udS0l9V3bc0VcdUMBUNW2WG4kLooc=
 github.com/eaglebush/config v0.1.0/go.mod h1:UkGigEfx+L8E6iSiy130RcUrBl3SV9DPbisdV212wf8=
+github.com/eaglebush/config v0.1.8 h1:ek2dBw9glRbRof+d2oORNW7v20+eI9yO9oEb+g75x/Q=
+github.com/eaglebush/config v0.1.8/go.mod h1:UkGigEfx+L8E6iSiy130RcUrBl3SV9DPbisdV212wf8=
 github.com/eaglebush/datainfo v0.1.0 h1:tDQg2UcPrw6Lkjj98L3IS6hCCu4IhDCMr9Md4mb2maM=
 github.com/eaglebush/datainfo v0.1.0/go.mod h1:X+/1ax+ZMKkVl+E5BDu+SE2TXxNYsF7OaO0kDzFyYcE=
 github.com/eaglebush/filterbuilder v0.1.0 h1:VBxLwCTbBjfRn3m6kj2XM9TXPqu17YDCACGIJrVGpic=
