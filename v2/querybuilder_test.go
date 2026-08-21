@@ -305,6 +305,72 @@ func TestBuildDataHelperDelete(t *testing.T) {
 	}
 }
 
+func TestBuildDataHelperInsertViaInit(t *testing.T) {
+	q := New(
+		Source("{TableNotSoImportant}"),
+		Command(INSERT),
+		SkipNilWrite(false),
+		Constants(EngineConstants{
+			ParameterInSequence: true,
+			ParameterChar:       "@p",
+		}),
+		InsertReturn("SELECT SCOPE_IDENTITY()", false),
+		Value("UserKey", 5),
+		Value("UserName", "eaglebush"),
+		Value("Alias", "zaldy.baguinon"),
+		Value("FullName", "Elizalde Baguinon"),
+		Value("Active", false),
+		Value("Gender", nil),
+		Value("Birthdate", "GETDATE()", IsSqlString(false)),
+		Column("GenderX"),
+	)
+
+	s, v, err := q.Build()
+	if err != nil {
+		t.Logf("Error: %e", err)
+		return
+	}
+
+	t.Log(s)
+	for _, vi := range v {
+		vt := reflect.TypeOf(vi)
+		t.Log(vi, vt.String())
+	}
+}
+
+func TestBuildDataHelperSelectViaInit(t *testing.T) {
+	q := New(
+		Source("{TableNotSoImportant}"),
+		Command(SELECT),
+		SkipNilWrite(false),
+		Constants(EngineConstants{
+			ParameterInSequence: true,
+			ParameterChar:       "@p",
+		}),
+		InsertReturn("SELECT SCOPE_IDENTITY()", false),
+		Column("UserKey"),
+		Column("UserName"),
+		Column("Alias"),
+		Column("FullName"),
+		Column("Active"),
+		Column("Gender"),
+		Column("Birthdate"),
+		Value("GenderX", nil),
+	)
+
+	s, v, err := q.Build()
+	if err != nil {
+		t.Logf("Error: %e", err)
+		return
+	}
+
+	t.Log(s)
+	for _, vi := range v {
+		vt := reflect.TypeOf(vi)
+		t.Log(vi, vt.String())
+	}
+}
+
 func TestTimeFormat(t *testing.T) {
 	tm := time.Now()
 	t.Logf("Time :%v", tm.Format(`2006-01-02 15:04:05`))

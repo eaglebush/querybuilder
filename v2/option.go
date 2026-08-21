@@ -6,57 +6,79 @@ import (
 	di "github.com/eaglebush/datainfo"
 )
 
+type OptionID uint8
+
+const (
+	OPTID_UNSET                 OptionID = 0
+	OPTID_CONSTANTS             OptionID = 1
+	OPTID_COMMAND               OptionID = 2
+	OPTID_DATABASE_INFO         OptionID = 3
+	OPTID_DISTINCT              OptionID = 4
+	OPTID_INSERT_RETURN         OptionID = 5
+	OPTID_INTERPOLATE           OptionID = 6
+	OPTID_REFERENCE_MODE        OptionID = 7
+	OPTID_REFERENCE_MODE_PREFIX OptionID = 8
+	OPTID_SCHEMA                OptionID = 9
+	OPTID_SOURCE                OptionID = 10
+	OPTID_VALUE                 OptionID = 11
+	OPTID_COLUMN                OptionID = 12
+	OPTID_RESULT_LIMIT          OptionID = 13
+	OPTID_SKIP_NIL_WRITE        OptionID = 14
+)
+
 // Option function for QueryBuilder
-type Option func(q *QueryBuilder) error
+type Option func(q *QueryBuilder) OptionID
 
 // Constants are builder settings that follows the database engine settings.
 func Constants(ec EngineConstants) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.dbEnConst = ec
-		return nil
+		return OPTID_CONSTANTS
 	}
 }
 
 // Command sets the command of a query builder
 func Command(ct CommandType) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.CommandType = ct
-		return nil
+		return OPTID_COMMAND
 	}
 }
 
 // Config sets the database info
 func DatabaseInfo(dnf *di.DataInfo) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.dbInfo = dnf
 		q.dbEnConst = InitConstants(dnf)
-		return nil
+		return OPTID_DATABASE_INFO
 	}
 }
 
 // Distinct sets the option to return distinct values
 func Distinct(yes bool) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.distinct = yes
-		return nil
+		return OPTID_DISTINCT
 	}
 }
 
-// InsertReturn sets the last insert id query for Insert command. Query might include column name. Inline means that this query appends to the query without semi-colon.
+// InsertReturn sets the last insert id query for Insert command.
+// Query might include column name.
+// Inline means that this query appends to the query without semi-colon.
 func InsertReturn(sql string, inline bool) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.insertRetn = len(sql) > 0
 		q.insertRetnSql = sql
 		q.insertRetnInline = inline
-		return nil
+		return OPTID_INSERT_RETURN
 	}
 }
 
 // Interpolate converts all table name with {} around it will be prepended with schema and reference code prefix
 func Interpolate(value bool) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.intTbls = value
-		return nil
+		return OPTID_INTERPOLATE
 	}
 }
 
@@ -66,7 +88,7 @@ func Interpolate(value bool) Option {
 //
 // Warning: If the interpolation is set to off, this property is ignored.
 func ReferenceMode(value bool) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		if q.dbInfo == nil {
 			q.dbInfo = di.New()
 			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
@@ -79,7 +101,7 @@ func ReferenceMode(value bool) Option {
 		}
 		q.dbInfo.ReferenceMode = new(bool)
 		*q.dbInfo.ReferenceMode = value
-		return nil
+		return OPTID_REFERENCE_MODE
 	}
 }
 
@@ -87,9 +109,9 @@ func ReferenceMode(value bool) Option {
 //
 // Warning: If the interpolation is set to off, this property is ignored.
 func ReferenceModePrefix(prefix string) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		if prefix == "" {
-			return nil
+			return OPTID_REFERENCE_MODE_PREFIX
 		}
 		if q.dbInfo == nil {
 			q.dbInfo = di.New()
@@ -103,13 +125,13 @@ func ReferenceModePrefix(prefix string) Option {
 		}
 		q.dbInfo.ReferenceModePrefix = new(string)
 		*q.dbInfo.ReferenceModePrefix = prefix
-		return nil
+		return OPTID_REFERENCE_MODE_PREFIX
 	}
 }
 
 // Schema sets the schema of a query builder
 func Schema(sch string) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		if q.dbInfo == nil {
 			q.dbInfo = di.New()
 			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
@@ -122,14 +144,50 @@ func Schema(sch string) Option {
 		}
 		q.dbInfo.Schema = new(string)
 		*q.dbInfo.Schema = sch
-		return nil
+		return OPTID_SCHEMA
 	}
 }
 
 // Source sets the table, view or stored procedure name
 func Source(name string) Option {
-	return func(q *QueryBuilder) error {
+	return func(q *QueryBuilder) OptionID {
 		q.Source = name
-		return nil
+		return OPTID_SOURCE
+	}
+}
+
+// Value adds a column-value data to the initialization process.
+//
+// It will be added to the data but it will be ignored when the command is SELECT and DELETE.
+func Value(name string, value any, vcOpts ...ValueOption) Option {
+	return func(q *QueryBuilder) OptionID {
+		q.AddValue(name, value, vcOpts...)
+		return OPTID_VALUE
+	}
+}
+
+// Column adds a column data to the initialization process.
+//
+// It will be added to the data but it will be ignored when the command is INSERT, UPDATE and DELETE.
+func Column(name string) Option {
+	return func(q *QueryBuilder) OptionID {
+		q.AddColumn(name)
+		return OPTID_COLUMN
+	}
+}
+
+// ResultLimit sets the result limit at initialization. ResultLimit can also be set at QueryBuilder ResultLimit field.
+func ResultLimit(value string) Option {
+	return func(q *QueryBuilder) OptionID {
+		q.ResultLimit = value
+		return OPTID_RESULT_LIMIT
+	}
+}
+
+// SkipNilWrite sets the condition to skip nil columns when writing to table
+func SkipNilWrite(skip bool) Option {
+	return func(q *QueryBuilder) OptionID {
+		q.skpNilWrCol = skip
+		return OPTID_SKIP_NIL_WRITE
 	}
 }

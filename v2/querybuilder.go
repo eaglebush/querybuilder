@@ -121,12 +121,49 @@ func New(options ...Option) *QueryBuilder {
 		skpNilWrCol: true,
 		ResultLimit: "",
 	}
+
+	var (
+		ct CommandType
+		tn QueryBuilder
+	)
+
+	// Check the command option type first to get the command type
 	for _, o := range options {
 		if o == nil {
 			continue
 		}
+		if optId := o(&tn); optId == OPTID_COMMAND {
+			ct = tn.CommandType
+			break
+		}
+	}
+
+	// Repeat the process. Copy the option to a new option array
+	// Use the test QueryBuilder struct again
+	o1 := make([]Option, 0, len(options))
+	tn = QueryBuilder{}
+	for _, o := range options {
+		if o == nil {
+			continue
+		}
+		optId := o(&tn)
+		if optId == OPTID_COLUMN && (ct == INSERT || ct == UPDATE || ct == DELETE) {
+			continue
+		}
+		if optId == OPTID_VALUE && (ct == SELECT || ct == DELETE) {
+			continue
+		}
+		if optId == OPTID_INSERT_RETURN && ct != INSERT {
+			continue
+		}
+		o1 = append(o1, o)
+	}
+
+	// Apply options to main QueryBuilder
+	for _, o := range o1 {
 		o(&n)
 	}
+
 	if n.dbInfo == nil {
 		n.dbInfo = di.New()
 		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
@@ -290,7 +327,7 @@ func (qb *QueryBuilder) SetColumnValue(name string, value any) *QueryBuilder {
 	}
 	for i, v := range qb.values {
 		if strings.EqualFold(name, v.column) {
-			return qb.setColumnValue(i, value, true, nil, nil)
+			return qb.setColumnValue(i, value, v.sqlstring, v.defValue, v.matchToNull)
 		}
 	}
 	return qb
@@ -370,14 +407,21 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 			sb.WriteString("DISTINCT ")
 		}
 		if len(qb.ResultLimit) > 0 && qb.dbEnConst.ResultLimitPosition == FRONT {
-			sb.WriteString(" TOP " + qb.ResultLimit + " ")
+			sb.WriteString(" TOP ")
+			sb.WriteString(qb.ResultLimit)
+			sb.WriteString(" ")
 		}
 	case INSERT:
-		sb.WriteString("INSERT INTO " + tbn + " (")
+		sb.WriteString("INSERT INTO ")
+		sb.WriteString(tbn)
+		sb.WriteString(" (")
 	case UPDATE:
-		sb.WriteString("UPDATE " + tbn + " SET ")
+		sb.WriteString("UPDATE ")
+		sb.WriteString(tbn)
+		sb.WriteString(" SET ")
 	case DELETE:
-		sb.WriteString("DELETE \rFROM " + tbn)
+		sb.WriteString("DELETE \rFROM ")
+		sb.WriteString(tbn)
 	}
 
 	// build columns (with placeholder for update )
@@ -404,21 +448,24 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 		qb.values[idx].skip = qb.skpNilWrCol && isnl
 		switch qb.CommandType {
 		case SELECT:
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma)
+			sb.WriteString(v.column)
 			cma = ", "
 			columncnt++
 		case INSERT:
 			if qb.values[idx].skip && !qb.values[idx].forceNull {
 				break
 			}
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma)
+			sb.WriteString(v.column)
 			cma = ", "
 			columncnt++
 		case UPDATE:
 			if qb.values[idx].skip && !qb.values[idx].forceNull {
 				break
 			}
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma)
+			sb.WriteString(v.column)
 			pchar = " = "
 			if isnl {
 				pchar += "NULL"
@@ -458,7 +505,8 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 
 	// Append table name for SELECT
 	if qb.CommandType == SELECT {
-		sb.WriteString(" \rFROM " + tbn)
+		sb.WriteString(" \rFROM ")
+		sb.WriteString(tbn)
 	}
 
 	// build value place holder for insert
@@ -487,7 +535,9 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 			cma = ","
 			inscnt++
 		}
-		sb.WriteString(") VALUES (" + strings.Join(q, "") + ")")
+		sb.WriteString(") VALUES (")
+		sb.WriteString(strings.Join(q, ""))
+		sb.WriteString(")")
 	}
 
 	// build filter parameters for SELECT, UPDATE and DELETE
@@ -501,9 +551,13 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 					paramcnt++
 					pchar += strconv.Itoa(paramcnt)
 				}
-				tsb.WriteString(cma + c.expression + " = " + pchar)
+				tsb.WriteString(cma)
+				tsb.WriteString(c.expression)
+				tsb.WriteString(" = ")
+				tsb.WriteString(pchar)
 			} else {
-				tsb.WriteString(cma + c.expression)
+				tsb.WriteString(cma)
+				tsb.WriteString(c.expression)
 				if !c.containsValue {
 					tsb.WriteString(" IS NULL")
 				}
@@ -514,13 +568,15 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 			fbs, _ := qb.FilterFunc(paramcnt, qb.dbEnConst.ParameterChar, qb.dbEnConst.ParameterInSequence)
 			if len(fbs) > 0 {
 				for _, fb := range fbs {
-					tsb.WriteString(cma + fb)
+					tsb.WriteString(cma)
+					tsb.WriteString(fb)
 					cma = "\r\t\t AND "
 				}
 			}
 		}
 		if tsb.Len() > 0 {
-			sb.WriteString("\r\t WHERE " + tsb.String())
+			sb.WriteString("\r\t WHERE ")
+			sb.WriteString(tsb.String())
 		}
 	}
 
@@ -529,7 +585,8 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 		sb.WriteString(" ORDER BY ")
 		cma = ""
 		for _, v := range qb.order {
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma)
+			sb.WriteString(v.column)
 			if v.order == ASC {
 				sb.WriteString(" ASC")
 			} else {
@@ -540,10 +597,12 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 	}
 	// build group by
 	if len(qb.group) > 0 {
-		sb.WriteString(" GROUP BY " + strings.Join(qb.group, ", "))
+		sb.WriteString(" GROUP BY ")
+		sb.WriteString(strings.Join(qb.group, ", "))
 	}
 	if len(qb.ResultLimit) > 0 && qb.dbEnConst.ResultLimitPosition == REAR {
-		sb.WriteString(" LIMIT " + qb.ResultLimit)
+		sb.WriteString(" LIMIT ")
+		sb.WriteString(qb.ResultLimit)
 	}
 
 	// for insert that requires return id for auto incremented columns
@@ -551,7 +610,8 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 		if !qb.insertRetnInline {
 			sb.WriteString(";\n")
 		}
-		sb.WriteString(" " + qb.insertRetnSql)
+		sb.WriteString(" ")
+		sb.WriteString(qb.insertRetnSql)
 	}
 
 	sb.WriteString(";")

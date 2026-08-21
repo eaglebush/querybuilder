@@ -11,21 +11,6 @@ type (
 	ValueOption func(vo *ValueCompareOption) error
 )
 
-// ResultLimit sets the result limit at initialization. ResultLimit can also be set at QueryBuilder ResultLimit field.
-func ResultLimit(value string) Option {
-	return func(q *QueryBuilder) error {
-		q.ResultLimit = value
-		return nil
-	}
-}
-
-// SkipNilWrite sets the condition to skip nil columns when writing to table
-func SkipNilWrite(skip bool) Option {
-	return func(q *QueryBuilder) error {
-		q.skpNilWrCol = skip
-		return nil
-	}
-}
 
 // IsSqlString sets if the value is an SQL string. When true, this value is enclosed by the database client in single quotes to represent as string
 func IsSqlString(indeed bool) ValueOption {

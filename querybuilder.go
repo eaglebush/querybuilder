@@ -302,14 +302,14 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 			sb.WriteString("DISTINCT ")
 		}
 		if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == FRONT {
-			sb.WriteString(" TOP " + qb.ResultLimit + " ")
+			sb.WriteString(" TOP ");sb.WriteString(qb.ResultLimit);sb.WriteString(" ")
 		}
 	case INSERT:
-		sb.WriteString("INSERT INTO " + tbn + " (")
+		sb.WriteString("INSERT INTO ");sb.WriteString(tbn);sb.WriteString(" (")
 	case UPDATE:
-		sb.WriteString("UPDATE " + tbn + " SET ")
+		sb.WriteString("UPDATE ");sb.WriteString(tbn);sb.WriteString(" SET ")
 	case DELETE:
-		sb.WriteString("DELETE \rFROM " + tbn)
+		sb.WriteString("DELETE \rFROM ");sb.WriteString(tbn)
 	}
 
 	// build columns (with placeholder for update )
@@ -336,21 +336,21 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 		qb.Values[idx].skip = qb.SkipNilWriteColumn && isnl
 		switch qb.CommandType {
 		case SELECT:
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma);sb.WriteString(v.column)
 			cma = ", "
 			columncnt++
 		case INSERT:
 			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
 				break
 			}
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma);sb.WriteString(v.column)
 			cma = ", "
 			columncnt++
 		case UPDATE:
 			if qb.Values[idx].skip && !qb.Values[idx].forcenull {
 				break
 			}
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma);sb.WriteString(v.column)
 			pchar = " = "
 			if isnl {
 				pchar += "NULL"
@@ -390,7 +390,7 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 
 	// Append table name for SELECT
 	if qb.CommandType == SELECT {
-		sb.WriteString(" \rFROM " + tbn)
+		sb.WriteString(" \rFROM ");sb.WriteString(tbn)
 	}
 
 	// build value place holder for insert
@@ -419,7 +419,7 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 			cma = ","
 			inscnt++
 		}
-		sb.WriteString(") VALUES (" + strings.Join(q, "") + ")")
+		sb.WriteString(") VALUES (");sb.WriteString(strings.Join(q, ""));sb.WriteString(")")
 	}
 
 	// build filter parameters for SELECT, UPDATE and DELETE
@@ -433,9 +433,9 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 					paramcnt++
 					pchar += strconv.Itoa(paramcnt)
 				}
-				tsb.WriteString(cma + c.expression + " = " + pchar)
+				tsb.WriteString(cma);tsb.WriteString(c.expression);tsb.WriteString(" = ");tsb.WriteString(pchar)
 			} else {
-				tsb.WriteString(cma + c.expression)
+				tsb.WriteString(cma);tsb.WriteString(c.expression)
 				if !c.containsvalue {
 					tsb.WriteString(" IS NULL")
 				}
@@ -446,13 +446,13 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 			fbs, _ := qb.FilterFunc(paramcnt, qb.ParameterChar, qb.ParameterInSequence)
 			if len(fbs) > 0 {
 				for _, fb := range fbs {
-					tsb.WriteString(cma + fb)
+					tsb.WriteString(cma);tsb.WriteString(fb)
 					cma = "\r\t\t AND "
 				}
 			}
 		}
 		if tsb.Len() > 0 {
-			sb.WriteString("\r\t WHERE " + tsb.String())
+			sb.WriteString("\r\t WHERE ");sb.WriteString(tsb.String())
 		}
 	}
 
@@ -461,7 +461,7 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 		sb.WriteString(" ORDER BY ")
 		cma = ""
 		for _, v := range qb.Order {
-			sb.WriteString(cma + v.column)
+			sb.WriteString(cma);sb.WriteString(v.column)
 			if v.order == ASC {
 				sb.WriteString(" ASC")
 			} else {
@@ -473,11 +473,11 @@ func (qb *QueryBuilder) Build() (query string, args []any, err error) {
 
 	// build group by
 	if len(qb.Group) > 0 {
-		sb.WriteString(" GROUP BY " + strings.Join(qb.Group, ", "))
+		sb.WriteString(" GROUP BY ");sb.WriteString(strings.Join(qb.Group, ", "))
 	}
 
 	if len(qb.ResultLimit) > 0 && qb.ResultLimitPosition == REAR {
-		sb.WriteString(" LIMIT " + qb.ResultLimit)
+		sb.WriteString(" LIMIT ");sb.WriteString(qb.ResultLimit)
 	}
 
 	sb.WriteString(";")
