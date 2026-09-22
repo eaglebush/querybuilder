@@ -165,7 +165,7 @@ func New(options ...Option) *QueryBuilder {
 	}
 
 	if n.dbInfo == nil {
-		n.dbInfo = di.New()
+		n.dbInfo, _ = di.New()
 		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
 		n.dbInfo.StringEscapeChar = &n.dbEnConst.StringEscapeChar
 		n.dbInfo.ParameterPlaceHolder = &n.dbEnConst.ParameterChar
@@ -193,7 +193,7 @@ func Spawn(builder QueryBuilder, options ...Option) *QueryBuilder {
 		o(&n)
 	}
 	if n.dbInfo == nil {
-		n.dbInfo = di.New()
+		n.dbInfo, _ = di.New()
 		n.dbInfo.StringEnclosingChar = &n.dbEnConst.StringEnclosingChar
 		n.dbInfo.StringEscapeChar = &n.dbEnConst.StringEscapeChar
 		n.dbInfo.ParameterPlaceHolder = &n.dbEnConst.ParameterChar

@@ -90,7 +90,7 @@ func Interpolate(value bool) Option {
 func ReferenceMode(value bool) Option {
 	return func(q *QueryBuilder) OptionID {
 		if q.dbInfo == nil {
-			q.dbInfo = di.New()
+			q.dbInfo, _ = di.New()
 			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
 			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
 			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
@@ -114,7 +114,7 @@ func ReferenceModePrefix(prefix string) Option {
 			return OPTID_REFERENCE_MODE_PREFIX
 		}
 		if q.dbInfo == nil {
-			q.dbInfo = di.New()
+			q.dbInfo, _ = di.New()
 			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
 			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
 			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
@@ -133,7 +133,7 @@ func ReferenceModePrefix(prefix string) Option {
 func Schema(sch string) Option {
 	return func(q *QueryBuilder) OptionID {
 		if q.dbInfo == nil {
-			q.dbInfo = di.New()
+			q.dbInfo, _ = di.New()
 			q.dbInfo.StringEnclosingChar = &q.dbEnConst.StringEnclosingChar
 			q.dbInfo.StringEscapeChar = &q.dbEnConst.StringEscapeChar
 			q.dbInfo.ParameterPlaceHolder = &q.dbEnConst.ParameterChar
